@@ -1,7 +1,6 @@
-const express = require("express");
 const { z } = require("zod");
 const userModel = require("../models/User");
-const { generateBearerToken } = require("../utils/token");
+const { generateBearerToken } = require("../utils/jwt.utils");
 
 const signUp = async (req, res) => {
    try {

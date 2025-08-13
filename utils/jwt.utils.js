@@ -5,7 +5,7 @@ const generateBearerToken = (payload) => {
       const token = jwt.sign(payload, process.env.JWT_SECRET, {
          expiresIn: "7d",
       });
-      return `Bearer ${token}`;
+      return `${token}`;
    } catch (error) {
       console.log(error.message);
       throw error;
