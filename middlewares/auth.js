@@ -1,4 +1,4 @@
-const { verifyBearerToken } = require("../utils/token");
+const { verifyBearerToken } = require("../utils/jwt.utils");
 const userModel = require("../models/User");
 const authentication = async (req, res, next) => {
    try {
