@@ -20,7 +20,6 @@ const createCourse = async (req, res) => {
          title: z.string().min(2).max(30),
          description: z.string().min(2).max(500),
          price: z.number().min(1).max(99999),
-         // imageUrl: z.string(),
       });
 
       const validationResult = await courseBody.safeParseAsync(req.body);

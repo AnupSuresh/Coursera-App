@@ -4,14 +4,49 @@ const { z } = require("zod");
 const { getS3PresignedPutUrl, deleteS3File } = require("../utils/s3.utils");
 const auth = require("../middlewares/auth");
 
-uploadRouter.get("/pre-signed-url", auth, async (req, res) => {
+// Route to get a presigned-url
+uploadRouter.get("/thumbnail/pre-signed-url", auth, async (req, res) => {
    try {
+      const accessType = "public";
+      // Folder path verification using zod
+      const safeCourseName = z
+         .string()
+         .trim()
+         .min(1)
+         .max(100)
+         .regex(/^[a-zA-Z0-9_\-]+$/, "Invalid course name") // Checks for allowed characters only
+         .refine((val) => !val.startsWith("/") && !val.includes("//"), {
+            message: "Folder path must not start with '/' or contain '//' ",
+         }) // Checks for leading and double slashes
+         .refine((val) => !val.includes(".."), {
+            message: "Folder path must not contain '..'",
+         }); // Checks for double dots
+
+      // File name verification using zod
+      const safeFileName = z
+         .string()
+         .trim()
+         .min(1)
+         .max(100)
+         .regex(/^[a-zA-Z0-9_\-\.]+$/, "Invalid file name") // Checks for allowed characters only
+         .refine(
+            (val) => val.includes(".") && val.split(".").pop().length > 1,
+            {
+               message: "File name must include an extension",
+            }
+         ); // Checks if the file name has an extension
+
+      // Schema for request query values using zod
       const reqQuerySchema = z.object({
-         folderName: z.string().trim().min(1).max(50),
-         fileName: z.string().trim().min(1).max(100),
-         fileType: z.string().trim().min(1).max(20),
+         courseName: safeCourseName,
+         fileName: safeFileName,
+         fileType: z.string().trim().min(1).max(50),
       });
+
+      // Schema validation
       const validationResult = await reqQuerySchema.safeParseAsync(req.query);
+
+      // Returs error for invalid query values that doesn't match the defined schema
       if (!validationResult.success) {
          return res.status(422).json({
             error: "Validation failed",
@@ -19,14 +54,20 @@ uploadRouter.get("/pre-signed-url", auth, async (req, res) => {
          });
       }
 
-      const { folderName, fileName, fileType } = validationResult.data;
-      const { url, key } = await getS3PresignedPutUrl(
-         folderName,
+      // Destructuring the values from the validated query values
+      const { courseName, fileType, fileName } = validationResult.data;
+
+      // Generating pre-signed url
+      const { url, key, contentType } = await getS3PresignedPutUrl(
+         accessType,
+         req.user._id,
+         courseName,
+         fileType,
          fileName,
-         fileType
+         300
       );
 
-      if (!url || !key) {
+      if (!url || !key || !contentType) {
          return res.status(500).json({ error: "Error generating url" });
       }
 
@@ -36,10 +77,18 @@ uploadRouter.get("/pre-signed-url", auth, async (req, res) => {
          key,
       });
    } catch (error) {
+      console.error("Error generating presigned URL:", error.stack);
+      if (
+         (error.message && error.message.includes("too long")) ||
+         error.message.includes("Missing required")
+      ) {
+         return res.status(400).json({ error: err.message });
+      }
       res.status(500).json({
          error: "Internal server error",
-         details: error.message,
-      });
+         details:
+            process.env.NODE_ENV === "development" ? error.message : undefined,
+      }); // Only sending error details if in development
    }
 });
 
