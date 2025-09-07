@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+      <title>Auth with MongoDB</title>
+   </head>
+
+   <body>
+      <div id="loggedOutDiv" hidden>
+         <div>
+            <h4>SignUP</h4>
+            <label for="su_fname">First Name: </label>
+            <input type="text" name="firstName" id="su_fname" />
+            <br />
+            <br />
+            <label for="su_lname">Last Name: </label>
+            <input type="text" name="lastName" id="su_lname" />
+            <br />
+            <br />
+            <label for="su_email">Email: </label>
+            <input type="email" name="email" id="su_email" />
+            <br />
+            <br />
+            <label for="su_password">Password: </label>
+            <input type="text" name="password" id="su_password" />
+            <br />
+            <br />
+            <!-- <input
+               type="text"
+               name="adminSecret"
+               value="iamanadmin"
+               id="adminSecret"
+               hidden
+            /> -->
+            <button onclick="SignUp()">Sign Up</button>
+         </div>
+         <div>
+            <h4>SignIN</h4>
+            <label for="si_email">Email: </label>
+            <input type="email" name="email" id="si_email" />
+            <br />
+            <br />
+            <label for="si_password">Password: </label>
+            <input type="text" name="password" id="si_password" />
+            <br />
+            <br />
+            <button id="signBtn" onclick="SignIn()">Sign In</button>
+            <i id="counter"></i>
+         </div>
+      </div>
+      <div id="statusDiv">
+         <h5>Status: <b id="status" style="color: red">LOGGED OUT</b></h5>
+      </div>
+      <div hidden id="userInfoDiv">
+         <h4>User Info:</h4>
+         <p>Id: <i id="userId"></i></p>
+         <p>First Name: <i id="userFirstName"></i></p>
+         <p>Last Name: <i id="userLastName"></i></p>
+         <p>Email: <i id="userEmail"></i></p>
+         <p>Role: <i id="userRole"></i></p>
+         <button onclick="redirectToAdminPanel()">Admin Panel</button>
+         <button onclick="LogOut()">Log out</button>
+      </div>
+      <script>
+         const SignUp = async () => {
+            try {
+               const firstName = document.getElementById("su_fname").value;
+               const lastName = document.getElementById("su_lname").value;
+               const email = document.getElementById("su_email").value;
+               const password = document.getElementById("su_password").value;
+               const adminSecret =
+                  document.getElementById("adminSecret")?.value;
+               // console.log(adminSecret);
+               const response = await axios.post(
+                  "http://localhost:3000/api/v1/user/signup",
+                  {
+                     firstName: firstName,
+                     lastName: lastName,
+                     email: email,
+                     password: password,
+                     adminSecret: adminSecret,
+                  }
+               );
+               alert(response.data.message);
+            } catch (error) {
+               const errorData = error.response?.data?.error?.properties;
+
+               if (errorData) {
+                  const errors = [];
+
+                  for (const [field, info] of Object.entries(errorData)) {
+                     if (Array.isArray(info.errors)) {
+                        errors.push(`${field}: ${info.errors.join(", ")}`);
+                     }
+                  }
+                  alert("Validation Errors:\n" + errors.join("\n"));
+               } else if (typeof error.response?.data?.error === "string") {
+                  alert("Error: " + error.response.data.error);
+               } else {
+                  alert(
+                     "An unexpected error occurred. Please try again later."
+                  );
+                  console.error("Unhandled error:", error);
+               }
+            }
+         };
+
+         const SignIn = async () => {
+            try {
+               const email = document.getElementById("si_email").value;
+               const password = document.getElementById("si_password").value;
+               const response = await axios.post(
+                  "http://localhost:3000/api/v1/user/signin",
+                  {
+                     email: email,
+                     password: password,
+                  },
+                  { withCredentials: true }
+               );
+               console.log(response.data.message);
+               alert(response.data.message);
+               getUserData();
+            } catch (error) {
+               if (error.response) {
+                  if (error.response.status === 429) {
+                     document.getElementById("signBtn").disabled = true;
+                     const retryAfter = error.response.headers["retry-after"];
+                     console.log(retryAfter);
+                     console.log(
+                        `Rate limited. Retry after ${retryAfter} seconds`
+                     );
+                     alert(`Rate limited. Retry after ${retryAfter} seconds`);
+                     setCounter(parseInt(retryAfter));
+                  }
+               } else {
+                  alert("Network error or server not reachable");
+               }
+            }
+         };
+
+         const setCounter = (retAft) => {
+            const counter = document.getElementById("counter");
+            const interval = setInterval(() => {
+               counter.textContent = retAft;
+               --retAft;
+               if (retAft < 0) {
+                  clearInterval(interval);
+                  counter.textContent = "You can try again now";
+                  document.getElementById("signBtn").disabled = false;
+               }
+            }, 1000);
+         };
+
+         const getUserData = async () => {
+            try {
+               const response = await axios.get(
+                  "http://localhost:3000/api/v1/user/me",
+                  {
+                     withCredentials: true,
+                  }
+               );
+               if (response.data?.user) {
+                  showUserInfo(response.data.user);
+               }
+            } catch (error) {
+               const errMsg = error.response.data?.error || "unauthorized";
+               if (errMsg === "Invalid or expired token.") {
+                  const success = await tryRefreshToken();
+                  if (success) {
+                     return getUserData();
+                  } else {
+                     return handleLogout();
+                  }
+               }
+               if (
+                  ["Token not provided.", "User no longer exists."].includes(
+                     errMsg
+                  )
+               ) {
+                  return handleLogout(errMsg);
+               } else {
+                  alert("Network error or server not reachable");
+               }
+            }
+         };
+
+         function showUserInfo(user) {
+            const userInfoDiv = document.getElementById("userInfoDiv");
+            const loggedOutDiv = document.getElementById("loggedOutDiv");
+            const userId = document.getElementById("userId");
+            const userFirstName = document.getElementById("userFirstName");
+            const userLastName = document.getElementById("userLastName");
+            const userEmail = document.getElementById("userEmail");
+            const userRole = document.getElementById("userRole");
+            const status = document.getElementById("status");
+            userInfoDiv.hidden = false;
+            loggedOutDiv.hidden = true;
+            userId.textContent = user._id;
+            userFirstName.textContent = user.firstName;
+            userLastName.textContent = user.lastName;
+            userEmail.textContent = user.email;
+            userRole.textContent = user.role;
+            status.textContent = "LOGGED IN";
+            status.style.color = "green";
+         }
+
+         async function tryRefreshToken() {
+            try {
+               const response = await axios.get(
+                  "http://localhost:3000/api/v1/user/refresh-token",
+                  {
+                     withCredentials: true,
+                  }
+               );
+               return true;
+            } catch (error) {
+               alert(error.response.data.error);
+            }
+         }
+
+         const LogOut = async () => {
+            try {
+               const response = await axios.post(
+                  "http://localhost:3000/api/v1/user/signout",
+                  {},
+                  {
+                     withCredentials: true,
+                  }
+               );
+               handleLogout("Logout Successfull");
+            } catch (error) {
+               if (error.response.data.error === "Invalid or expired token.") {
+                  const success = await tryRefreshToken();
+                  if (success) {
+                     LogOut();
+                  } else {
+                     console.error("Logout failed:", error);
+                     alert("Logout failed:", error);
+                  }
+               }
+            }
+         };
+
+         function handleLogout(message) {
+            document.getElementById("userInfoDiv").hidden = true;
+            document.getElementById("loggedOutDiv").hidden = false;
+            const status = document.getElementById("status");
+            status.textContent = "LOGGED OUT";
+            status.style.color = "red";
+            if (message) {
+               alert(message);
+            }
+         }
+
+         function redirectToAdminPanel() {
+            window.location.href = "/api/v1/user/admin";
+         }
+
+         document.addEventListener("DOMContentLoaded", () => {
+            getUserData();
+         });
+      </script>
+   </body>
+</html>
