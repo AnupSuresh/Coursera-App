@@ -6,13 +6,25 @@ const express = require("express");
 const app = express();
 const port = process.env.PORT || 3000;
 
-// MongoDB connection
+// MongoDB and Redis connection
 const connectDb = require("./config/db.config");
-connectDb();
+const connectRedis = require("./config/redis.config");
+(async () => {
+   try {
+      await connectDb();
+      const redisClient = await connectRedis();
+      console.log("Databases connected!✅");
+   } catch (err) {
+      console.error("Startup error:", err);
+      process.exit(1);
+   }
+})();
 
 // Other Package imports
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
+
+// app.set("trust proxy", 1); // Uncomment this if behind a reverse proxy like vercel or ngnix
 
 // Middlewares
 app.use(cookieParser());
@@ -33,5 +45,9 @@ const uploadRouter = require("./routes/upload.routes");
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/course", courseRouter);
 app.use("/api/v1/upload", uploadRouter);
+
+app.get("/", (req, res) => {
+   res.sendFile(__dirname + "/public/auth.html");
+});
 
 app.listen(port, () => console.log(`App listening on port ${port}!`));

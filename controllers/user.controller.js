@@ -1,6 +1,7 @@
 const { z } = require("zod");
 const userModel = require("../models/User");
-const { generateBearerToken } = require("../utils/jwt.utils");
+const { generateTokens, verifyRefreshToken } = require("../utils/jwt.utils");
+const connectRedis = require("../config/redis.config");
 
 const signUp = async (req, res) => {
    try {
@@ -98,8 +99,34 @@ const signIn = async (req, res) => {
          return res.status(401).json({ error: "Invalid Credentials" });
       }
 
-      const token = generateBearerToken({ id: user._id });
-      res.status(200).json({ message: "Sign In successfull!", token: token });
+      const { accessToken, refreshToken } = generateTokens({
+         id: user._id,
+         role: user.role,
+      });
+
+      const redisClient = await connectRedis();
+      await redisClient.setex(
+         `refresh:${user._id}`,
+         7 * 24 * 60 * 60,
+         refreshToken
+      );
+
+      res.cookie("accessToken", accessToken, {
+         httpOnly: true,
+         secure: process.env.NODE_ENV === "production",
+         sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+         maxAge: 15 * 60 * 1000, // 15 minutes in miliseconds
+         path: "/",
+      });
+      res.cookie("refreshToken", refreshToken, {
+         httpOnly: true,
+         secure: process.env.NODE_ENV === "production",
+         sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in miliseconds
+         path: "/",
+      });
+
+      res.status(200).json({ message: "Sign In successfull!" });
    } catch (error) {
       console.log(error);
       return res.status(500).json({ error: "Internal Server Error" });
@@ -113,9 +140,68 @@ const me = (req, res) => {
       return res.status(500).json({ error: "Internal Server Error" });
    }
 };
+const refreshToken = async (req, res) => {
+   try {
+      const { refreshToken } = req.cookies;
+      if (!refreshToken) {
+         return res.status(401).json({ error: "Token not provided." });
+      }
+      const decoded = verifyRefreshToken(refreshToken);
+      const storedRefreshToken = await redisClient.get(`refresh:${decoded.id}`);
+      if (storedRefreshToken !== refreshToken) {
+         return res.status(401).json({ error: "Token is Invalid" });
+      }
+      const { accessToken, refreshToken: newRefreshToken } = generateTokens({
+         id: decoded.id,
+         role: decoded.role,
+      });
+
+      await redisClient.setex(
+         `refresh:${decoded.id}`,
+         7 * 24 * 60 * 60,
+         newRefreshToken
+      );
+
+      res.cookie("accessToken", accessToken, {
+         httpOnly: true,
+         secure: process.env.NODE_ENV === "production",
+         sameSite: "lax",
+         maxAge: 15 * 60 * 1000,
+      });
+
+      res.cookie("refreshToken", newRefreshToken, {
+         httpOnly: true,
+         secure: process.env.NODE_ENV === "production",
+         sameSite: "lax",
+         maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      res.status(200).json({ message: "Token refreshed" });
+   } catch (error) {
+      console.error("JWT verification failed:", error);
+      return res.status(401).json({ error: "Invalid or expired token." });
+   }
+};
+const signOut = async (req, res) => {
+   res.clearCookie("accessToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+      path: "/",
+   });
+   res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+      path: "/",
+   });
+   res.status(200).json({ message: "Logged out successfully." });
+};
 
 module.exports = {
    signUp,
    signIn,
+   signOut,
    me,
+   refreshToken,
 };
