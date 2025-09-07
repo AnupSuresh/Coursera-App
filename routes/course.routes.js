@@ -11,6 +11,9 @@ const {
    ownedCourses,
 } = require("../controllers/course.controller");
 
+courseRouter.get("/", (req, res) => {
+   res.sendFile(__dirname + "/public/CourseForm.html");
+});
 courseRouter.post("/purchase", auth, purchaseCourse);
 courseRouter.get("/owned", auth, ownedCourses);
 courseRouter.get("/preview", previewCourses);
