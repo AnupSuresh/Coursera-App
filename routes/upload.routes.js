@@ -62,8 +62,8 @@ uploadRouter.get("/thumbnail/pre-signed-url", auth, async (req, res) => {
          accessType,
          req.user._id,
          courseName,
-         fileType,
          fileName,
+         fileType,
          300
       );
 

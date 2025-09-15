@@ -18,7 +18,7 @@ courseRouter.post("/purchase", auth, purchaseCourse);
 courseRouter.get("/owned", auth, ownedCourses);
 courseRouter.get("/preview", previewCourses);
 courseRouter.post("/create", auth, isAdmin, createCourse);
-courseRouter.post("/update", auth, isAdmin, updateCourse);
-courseRouter.post("/delete", auth, isAdmin, deleteCourse);
+courseRouter.put("/update/:courseId", auth, isAdmin, updateCourse);
+courseRouter.delete("/delete/:courseId", auth, isAdmin, deleteCourse);
 
 module.exports = courseRouter;

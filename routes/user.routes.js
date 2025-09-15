@@ -14,7 +14,7 @@ const {
 
 userRouter.post("/signup", signUp);
 userRouter.post("/signin", rateLimiterMiddleware(5, 60, 120), signIn);
-userRouter.post("/signOut", auth, signOut);
+userRouter.post("/signOut", signOut);
 userRouter.get("/refresh-token", refreshToken);
 userRouter.get("/me", auth, me);
 userRouter.get("/admin", auth, isAdmin, (req, res) => {
