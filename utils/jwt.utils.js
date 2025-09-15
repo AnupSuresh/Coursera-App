@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
 
-const ACCESS_TOKEN_EXPIRES = "1m";
+const ACCESS_TOKEN_EXPIRES = "15m";
 const REFRESH_TOKEN_EXPIRES = "7d";
 
 const generateTokens = (payload) => {
@@ -19,7 +19,6 @@ const generateTokens = (payload) => {
             expiresIn: REFRESH_TOKEN_EXPIRES,
          }
       );
-      console.log(`Access Token: ${accessToken}_____ Refresh Token: ${refreshToken}`)
       return { accessToken, refreshToken };
    } catch (error) {
       console.log(error.message);
@@ -46,11 +45,7 @@ const verifyAccessToken = (token) => {
 };
 const verifyRefreshToken = (token) => {
    try {
-      const refreshToken = token;
-      const decodedData = jwt.verify(
-         refreshToken,
-         process.env.JWT_REFRESH_SECRET
-      );
+      const decodedData = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
       return decodedData;
    } catch (error) {
       if (error.name === "TokenExpiredError") {
