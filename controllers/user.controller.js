@@ -1,5 +1,5 @@
 const { z } = require("zod");
-const userModel = require("../models/User");
+const UserModel = require("../models/User");
 const { generateTokens, verifyRefreshToken } = require("../utils/jwt.utils");
 const connectRedis = require("../config/redis.config");
 
@@ -13,7 +13,7 @@ const signUp = async (req, res) => {
             .email()
             .refine(
                async (val) => {
-                  const user = await userModel.findOne({ email: val });
+                  const user = await UserModel.findOne({ email: val });
                   return !user;
                },
                { message: "User already exists please sign in." }
@@ -47,7 +47,7 @@ const signUp = async (req, res) => {
          role = "admin";
       }
 
-      const user = new userModel({
+      const user = new UserModel({
          firstName: firstName,
          lastName: lastName,
          email: email,
@@ -85,9 +85,9 @@ const signIn = async (req, res) => {
       }
 
       const { email, password } = validationResult.data;
-      const user = await userModel
-         .findOne({ email: email })
-         .select("+password");
+      const user = await UserModel.findOne({ email: email }).select(
+         "+password"
+      );
       if (!user) {
          return res.status(404).json({
             error: "User not found, please signup first.",
@@ -142,6 +142,7 @@ const me = (req, res) => {
 };
 const refreshToken = async (req, res) => {
    try {
+      const redisClient = await connectRedis();
       const { refreshToken } = req.cookies;
       if (!refreshToken) {
          return res.status(401).json({ error: "Token not provided." });

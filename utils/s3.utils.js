@@ -122,19 +122,19 @@ const getContentCategory = (contentType) => {
       case "application":
          // Some application types that are commonly documents
          if (
-            normalizedContentType.includes("document") ||
-            normalizedContentType.includes("office") ||
-            normalizedContentType.includes("sheet") ||
-            normalizedContentType.includes("presentation") ||
-            normalizedContentType.includes("pdf")
+            mainType.includes("document") ||
+            mainType.includes("office") ||
+            mainType.includes("sheet") ||
+            mainType.includes("presentation") ||
+            mainType.includes("pdf")
          ) {
             return "documents";
          }
          // Some application types that are archives
          if (
-            normalizedContentType.includes("zip") ||
-            normalizedContentType.includes("compressed") ||
-            normalizedContentType.includes("archive")
+            mainType.includes("zip") ||
+            mainType.includes("compressed") ||
+            mainType.includes("archive")
          ) {
             return "archives";
          }
@@ -169,8 +169,8 @@ const generateUniqueKey = (
    accessType,
    userId,
    courseName,
-   contentType,
-   fileName
+   fileName,
+   contentType
 ) => {
    if (!accessType || !userId || !courseName || !contentType || !fileName) {
       throw new Error("Some required fields are missing");
@@ -234,8 +234,8 @@ const getS3PresignedPutUrl = async (
    accessType,
    userId,
    courseName,
-   contentType,
    fileName,
+   contentType,
    expiresIn = 60
 ) => {
    try {
@@ -262,8 +262,8 @@ const getS3PresignedPutUrl = async (
          accessType,
          userId,
          courseName,
-         contentType,
-         fileName
+         fileName,
+         contentType
       );
 
       const command = new PutObjectCommand({

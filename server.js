@@ -12,8 +12,10 @@ const connectRedis = require("./config/redis.config");
 (async () => {
    try {
       await connectDb();
-      const redisClient = await connectRedis();
-      console.log("Databases connected!✅");
+      const redis = await connectRedis();
+      redis.once("connect", () => {
+         console.log("Databases connected!✅");
+      });
    } catch (err) {
       console.error("Startup error:", err);
       process.exit(1);
