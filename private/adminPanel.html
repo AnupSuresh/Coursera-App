@@ -1,11 +1,82 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
    <head>
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
       <title>Admin Panel</title>
    </head>
    <body>
-      <h1>SUPER SECRET ADMIN PANEL! WELCOME!</h1>
+      <div>
+         <h3>Create Course</h3>
+         <label for="title">Title:</label>
+         <input type="text" name="title" id="title" />
+         <br />
+         <br />
+         <label for="description">Description:</label>
+         <input type="text" name="description" id="description" />
+         <br />
+         <br />
+         <label for="price">Price:</label>
+         <input type="number" name="price" id="price" />
+         <br />
+         <br />
+         <label for="thumbnail-image">Thumbnail:</label>
+         <input type="file" name="thumbnail-image" id="thumbnail-image" />
+         <br />
+         <br />
+         <button id="create-course">Create Course</button>
+      </div>
+      <script>
+         document
+            .getElementById("create-course")
+            .addEventListener("click", async (e) => {
+               const title = document.getElementById("title").value;
+               const description = document.getElementById("description").value;
+               const price = parseInt(document.getElementById("price").value);
+               const file = document.getElementById("thumbnail-image").files[0];
+               console.log(file.name, file.type, title);
+               if (!title || !description || !price || !file) {
+                  alert("Please fill all fields and select a thumbnail.");
+                  return;
+               }
+               try {
+                  const presignRes = await axios.get(
+                     `http://localhost:3000/api/v1/upload/thumbnail/pre-signed-url?courseName=${title}&fileName=${file.name}&fileType=${file.type}`,
+                     {
+                        withCredentials: true,
+                     }
+                  );
+                  const { url, key, message } = presignRes.data;
+                  const uploadRes = await axios.put(url, file, {
+                     headers: {
+                        "Content-Type": file.type,
+                     },
+                  });
+                  if (uploadRes.status === 200) {
+                     console.log("✅ Upload successful:", key);
+                     const courseCreationRes = await axios.post(
+                        "http://localhost:3000/api/v1/course/create",
+                        {
+                           title: title,
+                           description: description,
+                           price: price,
+                           key: key,
+                        },
+                        { withCredentials: true }
+                     );
+                     console.log(courseCreationRes.data.message);
+                  } else {
+                     console.log(
+                        "⚠️ Upload response:",
+                        uploadRes.status,
+                        uploadRes.statusText
+                     );
+                  }
+               } catch (error) {
+                  console.log("Upload failed", error);
+               }
+            });
+      </script>
    </body>
 </html>

@@ -159,13 +159,14 @@
                   "http://localhost:3000/api/v1/user/me",
                   {
                      withCredentials: true,
-                  }
+                  } 
                );
                if (response.data?.user) {
                   showUserInfo(response.data.user);
                }
             } catch (error) {
                const errMsg = error.response.data?.error || "unauthorized";
+               console.log(errMsg);
                if (errMsg === "Invalid or expired token.") {
                   const success = await tryRefreshToken();
                   if (success) {
