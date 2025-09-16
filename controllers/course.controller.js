@@ -27,7 +27,8 @@ const createCourse = async (req, res) => {
       const courseBody = z.object({
          title: z.string().min(2).max(30),
          description: z.string().min(2).max(500),
-         price: z.number().min(1).max(99999),
+         price: z.number().min(1).max(999999),
+         key: z.string().min(10).max(200),
       });
 
       const validationResult = await courseBody.safeParseAsync(req.body);
@@ -38,13 +39,20 @@ const createCourse = async (req, res) => {
             .json({ error: z.treeifyError(validationResult.error) });
       }
 
-      const { title, description, price } = validationResult.data;
+      const { title, description, price, key } = validationResult.data;
       const userId = req.user._id;
+
+      const cdnDomain = process.env.CLOUDFRONT_DOMAIN;
+      const url = `${cdnDomain}/${key}`;
 
       const course = new CourseModel({
          title,
          description,
          price,
+         "thumbnail-image": {
+            url: url,
+            key: key,
+         },
          creatorId: userId,
       });
       await course.save();
