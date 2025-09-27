@@ -1,20 +1,20 @@
 const { Router } = require("express");
 const uploadRouter = Router();
 const { z } = require("zod");
-const { getS3PresignedPutUrl, deleteS3File } = require("../utils/s3.utils");
+const { getS3PresignedPutUrl, deleteS3Files } = require("../utils/s3.utils");
 const auth = require("../middlewares/auth");
 
 // Route to get a presigned-url
-uploadRouter.get("/thumbnail/pre-signed-url", auth, async (req, res) => {
+uploadRouter.get("/upload/thumbnail/pre-signed-url", auth, async (req, res) => {
    try {
       const accessType = "public";
       // Folder path verification using zod
       const safeCourseName = z
          .string()
          .trim()
-         .min(1)
+         .min(3)
          .max(100)
-         .regex(/^[a-zA-Z0-9_\-]+$/, "Invalid course name") // Checks for allowed characters only
+         .regex(/^[a-zA-Z0-9_-]+(?: [a-zA-Z0-9_-]+)*$/, "Invalid course name")// Checks for allowed characters only
          .refine((val) => !val.startsWith("/") && !val.includes("//"), {
             message: "Folder path must not start with '/' or contain '//' ",
          }) // Checks for leading and double slashes
@@ -88,7 +88,21 @@ uploadRouter.get("/thumbnail/pre-signed-url", auth, async (req, res) => {
          error: "Internal server error",
          details:
             process.env.NODE_ENV === "development" ? error.message : undefined,
-      }); // Only sending error details if in development
+      });
+   }
+});
+uploadRouter.delete("/delete", auth, async (req, res) => {
+   try {
+      const { keys } = req.query;
+      const deleted = await deleteS3Files(keys);
+      console.log(deleted);
+      res.status(200).json({ message: "File deleted successfully" });
+   } catch (error) {
+      res.status(500).json({
+         error: "Internal server error",
+         details:
+            process.env.NODE_ENV === "development" ? error.message : undefined,
+      });
    }
 });
 
