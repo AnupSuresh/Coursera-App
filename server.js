@@ -42,11 +42,11 @@ app.use(express.static("public"));
 // Routers
 const userRouter = require("./routes/user.routes");
 const courseRouter = require("./routes/course.routes");
-const uploadRouter = require("./routes/upload.routes");
+const s3Router = require("./routes/s3.routes");
 
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/course", courseRouter);
-app.use("/api/v1/upload", uploadRouter);
+app.use("/api/v1/s3", s3Router);
 
 app.get("/", (req, res) => {
    res.sendFile(__dirname + "/public/auth.html");
