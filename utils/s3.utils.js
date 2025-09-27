@@ -1,4 +1,8 @@
-const { PutObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
+const {
+   PutObjectCommand,
+   DeleteObjectCommand,
+   DeleteObjectsCommand,
+} = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const { bucketName, s3Client } = require("../config/s3.config");
 const crypto = require("crypto");
@@ -283,22 +287,28 @@ const getS3PresignedPutUrl = async (
    }
 };
 
-const deleteS3File = async (key) => {
-   try {
-      if (!key) {
-         throw new Error("Key is required for deletion");
-      }
+const deleteS3Files = async (keys) => {
+   if (!keys) throw new Error("Key(s) required for deletion");
 
+   if (typeof keys === "string") {
+      // single
       const command = new DeleteObjectCommand({
          Bucket: bucketName,
-         Key: key,
+         Key: keys,
       });
-
-      await s3Client.send(command);
-   } catch (error) {
-      console.error(`Error deleting S3 file with key ${key}:`, error);
-      throw new Error(`Failed to delete S3 file: ${error.message}`);
+      return await s3Client.send(command);
    }
+
+   if (Array.isArray(keys)) {
+      // multiple
+      const command = new DeleteObjectsCommand({
+         Bucket: bucketName,
+         Delete: { Objects: keys.map((k) => ({ Key: k })) },
+      });
+      return await s3Client.send(command);
+   }
+
+   throw new Error("Invalid key format, must be string or array of strings");
 };
 
-module.exports = { getS3PresignedPutUrl, deleteS3File };
+module.exports = { getS3PresignedPutUrl, deleteS3Files };

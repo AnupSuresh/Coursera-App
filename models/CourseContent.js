@@ -3,7 +3,10 @@ const { Schema } = mongoose;
 
 const LessonSchema = new Schema({
    title: String,
-   videoUrl: String,
+   video: {
+      url: String,
+      key: String,
+   },
    notes: [
       {
          fileName: String,
@@ -13,7 +16,7 @@ const LessonSchema = new Schema({
             enum: [
                "application/pdf", // .pdf
                "text/plain", // .txt
-               "text/markdown", // .md 
+               "text/markdown", // .md
                "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
                "application/vnd.openxmlformats-officedocument.presentationml.presentation", // .pptx
                "image/jpeg", // .jpg
