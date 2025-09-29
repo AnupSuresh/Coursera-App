@@ -38,6 +38,7 @@ const contentTypeCategories = {
    "image/ico": "images",
    "image/heic": "images",
    "image/heif": "images",
+   "image/avif": "images",
 
    // Videos
    "video/mp4": "videos",
