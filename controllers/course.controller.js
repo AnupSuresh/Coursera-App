@@ -1,14 +1,102 @@
 const { z } = require("zod");
 const CourseModel = require("../models/Course");
+const CourseContentModel = require("../models/CourseContent");
+const CourseEnrollmentModel = require("../models/CourseEnrollment");
 const { deleteS3Files } = require("../utils/s3.utils");
+const { setCloudfrontCookies, refreshCookies } = require("../utils/cdn.utils");
 
 const purchaseCourse = async (req, res) => {
    try {
-   } catch (error) {}
+      const userId = req.user._id;
+      const { courseId } = req.params;
+
+      const existingEnrollment = await CourseEnrollmentModel.findOne({
+         courseId,
+         userId,
+         status: "active",
+      });
+
+      if (existingEnrollment) {
+         return res.status(400).json({
+            message: "Already purchased.",
+         });
+      }
+
+      const course = await CourseModel.findById(courseId);
+      if (!course) {
+         return res.status(404).json({ error: "Course not found" });
+      }
+
+      const expiryDate = new Date();
+      expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+
+      const enrollment = new CourseEnrollmentModel({
+         userId,
+         courseId,
+         enrolledAt: new Date(),
+         expiresAt: expiryDate,
+         status: "active",
+      });
+
+      await enrollment.save();
+
+      const setCookies = await setCloudfrontCookies(
+         res,
+         course.creatorId,
+         courseId,
+         expiryDate
+      );
+
+      console.log("Cookies set:", setCookies);
+
+      res.status(200).json({
+         message: "Course purchased successfully!",
+         courseId,
+         accessExpires: expiryDate,
+      });
+   } catch (error) {
+      console.error("Purchase error:", error);
+      res.status(500).json({
+         error: "Purchase failed",
+         details:
+            process.env.NODE_ENV === "development" ? error.message : undefined,
+      });
+   }
 };
 const ownedCourses = async (req, res) => {
    try {
-   } catch (error) {}
+      const userId = req.user._id;
+      const ownedCourses = await CourseEnrollmentModel.find({
+         userId,
+         status: "active",
+         $or: [
+            {
+               expiresAt: { $exists: false },
+            },
+            { expiresAt: { $gt: new Date() } },
+         ],
+      }).populate("courseId", "title description thumbnail-image price");
+
+      res.status(200).json({
+         courses: ownedCourses.map((c) => ({
+            id: c.courseId._id,
+            title: c.courseId.title,
+            description: c.courseId.description,
+            thumbnail: c.courseId["thumbnial-image"],
+            price: c.courseId.price,
+            enrolledAt: c.enrolledAt,
+            expiresAt: c.expiresAt,
+            progress: c.progress,
+         })),
+      });
+   } catch (error) {
+      console.error("Owned courses error:", error);
+      res.status(500).json({
+         error: "Failed to fetch owned courses",
+         details:
+            process.env.NODE_ENV === "development" ? error.message : undefined,
+      });
+   }
 };
 
 const previewCourses = async (req, res) => {
@@ -44,7 +132,7 @@ const createCourse = async (req, res) => {
       const userId = req.user._id;
 
       const cdnDomain = process.env.CLOUDFRONT_DOMAIN;
-      const url = `${cdnDomain}/${key}`;
+      const url = new URL(key, cdnDomain).toString();
 
       const course = new CourseModel({
          title,
@@ -93,7 +181,7 @@ const updateCourse = async (req, res) => {
          await deleteS3Files(existingCourse["thumbnail-image"].key);
       }
       const cdnDomain = process.env.CLOUDFRONT_DOMAIN;
-      const url = `${cdnDomain}/${key}`;
+      const url = new URL(key, cdnDomain).toString();
 
       await CourseModel.findByIdAndUpdate(courseId, {
          title,
@@ -140,14 +228,21 @@ const deleteCourse = async (req, res) => {
 
 const addCourseContent = async (req, res) => {
    try {
+      const { courseId } = req.params;
       const contentBody = z.object({
-         title: z.string().min(2).max(30),
-         description: z.string().min(2).max(500),
-         price: z.number().min(1).max(999999),
-         key: z.string().min(10).max(200),
+         title: z.string().min(2).max(100),
+         videoKey: z.string().min(5),
+         duration: z.number().min(1).max(10000),
+         notes: z.array(
+            z.object({
+               fileName: z.string(),
+               fileKey: z.string(),
+               fileType: z.string(),
+            })
+         ),
       });
 
-      const validationResult = await courseBody.safeParseAsync(req.body);
+      const validationResult = await contentBody.safeParseAsync(req.body);
 
       if (!validationResult.success) {
          return res
@@ -155,31 +250,142 @@ const addCourseContent = async (req, res) => {
             .json({ error: z.treeifyError(validationResult.error) });
       }
 
-      const { title, description, price, key } = validationResult.data;
-      const userId = req.user._id;
+      const { title, videoKey, duration, notes } = validationResult.data;
+
+      const course = await CourseModel.findById(courseId);
+      if (!course) {
+         return res.status(404).json({
+            error: "Course not found!",
+         });
+      }
+
+      if (course.creatorId.toString() !== req.user._id.toString()) {
+         return res.status(403).json({
+            error: "This course was not created by you and you can only add content to your own courses.",
+         });
+      }
 
       const cdnDomain = process.env.CLOUDFRONT_DOMAIN;
-      const url = `${cdnDomain}/${key}`;
+      const videoUrl = new URL(videoKey, cdnDomain).toString();
 
-      const course = new CourseModel({
+      const processedNotes = notes.map((note) => ({
+         fileName: note.fileName,
+         fileUrl: new URL(note.fileKey, cdnDomain).toString(),
+         fileKey: note.fileKey,
+         fileType: note.fileType,
+      }));
+
+      let courseContent = await CourseContentModel.findOne({ courseId });
+      if (!courseContent) {
+         courseContent = new CourseContentModel({
+            courseId,
+            lessons: [],
+            totalDuration: 0,
+         });
+      }
+
+      courseContent.lessons.push({
          title,
-         description,
-         price,
-         "thumbnail-image": {
-            url: url,
-            key: key,
+         video: {
+            url: videoUrl,
+            key: videoKey,
          },
-         creatorId: userId,
+         notes: processedNotes,
+         duration: duration,
       });
-      await course.save();
+
+      courseContent.totalDuration = courseContent.lessons.reduce(
+         (sum, lesson) => sum + lesson.duration,
+         0
+      );
+
+      await courseContent.save();
 
       res.status(200).json({
-         message: "Course created successfully.",
+         message: "Course content added successfully.",
+         totalLessons: courseContent.lessons.length,
+         totalDuration: courseContent.totalDuration,
       });
    } catch (error) {
       return res.status(500).json({
-         error: "Internal server error while creating course.",
+         error: "Internal server error while adding course content.",
          details: error.message,
+      });
+   }
+};
+const getCourseContent = async (req, res) => {
+   try {
+      const userId = req.user._id;
+      const { courseId } = req.params;
+
+      const enrolled = await CourseEnrollmentModel.findOne({
+         userId,
+         courseId,
+         status: "active",
+         $or: [
+            { expiresAt: { $exists: false } },
+            { expiresAt: { $gt: new Date() } },
+         ],
+      });
+
+      if (!enrolled) {
+         return res.status(403).json({
+            error: "Course access denied. Please purchase this course to access its content.",
+         });
+      }
+
+      const courseContent = await CourseContentModel.findById({
+         courseId,
+      }).populate("courseId", "title description creatorId");
+
+      if (!courseContent) {
+         return res.status(404).json({ error: "Course content not found" });
+      }
+
+      if (
+         refreshCookies(
+            req,
+            courseContent.courseId.creatorId,
+            courseId,
+            enrolled.expiresAt
+         )
+      ) {
+         const newExpiryDate = new Date();
+         newExpiryDate.setFullYear(newExpiryDate.getFullYear() + 1);
+
+         enrolled.expiresAt = newExpiryDate;
+         await enrolled.save();
+
+         const cookies = setCloudfrontCookies(
+            res,
+            courseContent.courseId.creatorId,
+            courseId,
+            newExpiryDate
+         );
+         console.log("Refreshed new Cookies:", cookies);
+      }
+
+      res.status(200).json({
+         Course: {
+            id: courseContent.courseId._id,
+            title: courseContent.courseId.title,
+            description: courseContent.courseId.description,
+         },
+         lessons: courseContent.lessons,
+         totalDuration: courseContent.totalDuration,
+         enrollment: {
+            enrolledAt: enrolled.enrolledAt,
+            expiresAt: enrolled.expiresAt,
+            progress: enrolled.progress,
+            status: enrolled.status,
+         },
+      });
+   } catch (error) {
+      console.error("Get course content error:", error);
+      res.status(500).json({
+         error: "Failed to load course content",
+         details:
+            process.env.NODE_ENV === "development" ? error.message : undefined,
       });
    }
 };
@@ -191,4 +397,6 @@ module.exports = {
    deleteCourse,
    purchaseCourse,
    ownedCourses,
+   addCourseContent,
+   getCourseContent,
 };

@@ -11,18 +11,20 @@ const LessonSchema = new Schema({
       {
          fileName: String,
          fileUrl: String,
+         fileKey: String,
          fileType: {
             type: String,
             enum: [
-               "application/pdf", // .pdf
-               "text/plain", // .txt
-               "text/markdown", // .md
-               "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
-               "application/vnd.openxmlformats-officedocument.presentationml.presentation", // .pptx
-               "image/jpeg", // .jpg
-               "image/png", // .png
-               "application/json", // .json
-               "text/html", // .html
+               "application/pdf",
+               "text/plain",
+               "text/markdown",
+               "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+               "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+               "image/jpeg",
+               "image/png",
+               "image/avif",
+               "application/json",
+               "text/html",
             ],
          },
       },
@@ -30,10 +32,10 @@ const LessonSchema = new Schema({
    duration: Number,
 });
 
-const CourseContent = new Schema({
-   courseId: Schema.Types.ObjectId,
+const CourseContentSchema = new Schema({
+   courseId: { type: Schema.Types.ObjectId, ref: "course", required: true },
    lessons: [LessonSchema],
    totalDuration: Number,
 });
-const CourseContenModel = mongoose.model("CourseContent", CourseContent);
-module.exports = CourseContenModel;
+
+module.exports = mongoose.model("CourseContent", CourseContentSchema);
