@@ -4,13 +4,13 @@ const path = require("path");
 const { date } = require("zod");
 
 const getPrivateKey = () => {
-   const keyPath =
-      process.env.CLOUDFRONT_PRIVATE_KEY_PATH ||
-      "./keys/cloudfront-private.pem";
+   // const keyPath =
+   //    process.env.CLOUDFRONT_PRIVATE_KEY_PATH ||
+   //    "./keys/cloudfront-private.pem";
    try {
-      return fs.readFileSync(path.resolve(keyPath), "utf8");
+      return process.env.CLOUDFRONT_PRIVATE_KEY;
    } catch (err) {
-      throw new Error("Failed to read Cloudfront Private Key from ", keyPath);
+      throw new Error("Failed to read Cloudfront Private Key" );
    }
 };
 
