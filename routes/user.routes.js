@@ -13,7 +13,7 @@ const {
 } = require("../controllers/user.controller");
 
 userRouter.post("/signup", signUp);
-userRouter.post("/signin", rateLimiterMiddleware(5, 60, 120), signIn);
+userRouter.post("/signin", rateLimiterMiddleware(50, 60, 70), signIn);
 userRouter.post("/signOut", signOut);
 userRouter.get("/refresh-token", refreshToken);
 userRouter.get("/me", auth, me);
