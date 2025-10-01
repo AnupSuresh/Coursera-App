@@ -14,7 +14,7 @@ const getPrivateKey = () => {
    }
 };
 
-const generateCloudFrontPolicy = async (userId, courseId, expiryDate) => {
+const generateCloudFrontPolicy = (userId, courseId, expiryDate) => {
    return {
       Statement: [
          {
@@ -49,10 +49,10 @@ const refreshCookies = (req, userId, courseId, expiryDate) => {
    }
 };
 
-const setCloudfrontCookies = async (res, userId, courseId, expiryDate) => {
+const setCloudfrontCookies = (res, userId, courseId, expiryDate) => {
    console.log(userId);
    const privateKey = getPrivateKey();
-   const policy = await generateCloudFrontPolicy(userId, courseId, expiryDate);
+   const policy = generateCloudFrontPolicy(userId, courseId, expiryDate);
    const signedCookies = getSignedCookies({
       keyPairId: process.env.CLOUDFRONT_KEY_PAIR_ID,
       privateKey: privateKey,
@@ -64,7 +64,7 @@ const setCloudfrontCookies = async (res, userId, courseId, expiryDate) => {
          httpOnly: true,
          secure: process.env.NODE_ENV === "production",
          sameSite: "lax",
-         domain: new URL(process.env.CLOUDFRONT_DOMAIN).hostname, // 👈 important
+         // domain: new URL(process.env.CLOUDFRONT_DOMAIN).hostname, // 👈 important
          path: "/", 
          expires: new Date(
             policy.Statement[0].Condition.DateLessThan["AWS:EpochTime"] * 1000

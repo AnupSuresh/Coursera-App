@@ -20,7 +20,7 @@ courseRouter.get("/", (req, res) => {
 // User routes
 courseRouter.post("/purchase/:courseId", auth, purchaseCourse);
 courseRouter.get("/owned", auth, ownedCourses);
-courseRouter.get("/:courseId/content", auth, ownedCourses);
+courseRouter.get("/:courseId/content", auth, getCourseContent);
 
 // Public routes
 courseRouter.get("/preview", previewCourses);
