@@ -18,7 +18,7 @@ const purchaseCourse = async (req, res) => {
 
       if (existingEnrollment) {
          return res.status(400).json({
-            message: "Already purchased.",
+            error: "Already purchased.",
          });
       }
 
@@ -40,7 +40,7 @@ const purchaseCourse = async (req, res) => {
 
       await enrollment.save();
 
-      const setCookies = await setCloudfrontCookies(
+      const setCookies = setCloudfrontCookies(
          res,
          course.creatorId,
          courseId,
@@ -334,9 +334,9 @@ const getCourseContent = async (req, res) => {
          });
       }
 
-      const courseContent = await CourseContentModel.findById({
+      const courseContent = await CourseContentModel.findOne({
          courseId,
-      }).populate("courseId", "title description creatorId");
+      }).populate("courseId", "title description thumbnail-image creatorId");
 
       if (!courseContent) {
          return res.status(404).json({ error: "Course content not found" });
@@ -362,14 +362,15 @@ const getCourseContent = async (req, res) => {
             courseId,
             newExpiryDate
          );
-         console.log("Refreshed new Cookies:", cookies);
+         // console.log("Refreshed new Cookies:", cookies);
       }
 
       res.status(200).json({
-         Course: {
+         course: {
             id: courseContent.courseId._id,
             title: courseContent.courseId.title,
             description: courseContent.courseId.description,
+            "thumbnail-image": courseContent.courseId["thumbnail-image"],
          },
          lessons: courseContent.lessons,
          totalDuration: courseContent.totalDuration,

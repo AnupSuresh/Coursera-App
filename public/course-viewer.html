@@ -1,0 +1,337 @@
+<!doctype html>
+<html>
+   <head>
+      <title>Course Content Viewer</title>
+      <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+      <style>
+         /* Global Styles */
+         body {
+            font-family: "Segoe UI", Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f4f6f9;
+            color: #333;
+            line-height: 1.6;
+         }
+         h1,
+         h2,
+         h3,
+         h4 {
+            margin-top: 0;
+            color: #222;
+         }
+         a {
+            color: #007bff;
+            text-decoration: none;
+         }
+         a:hover {
+            text-decoration: underline;
+         }
+         .container {
+            max-width: 1200px;
+            margin: auto;
+            padding: 20px;
+         }
+
+         /* Course Overview */
+         .m-container {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 30px;
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            margin-bottom: 30px;
+         }
+         .course-info {
+            flex: 1;
+            min-width: 300px;
+         }
+         .course-info h1 {
+            font-size: 2rem;
+            margin-bottom: 15px;
+         }
+         .course-info p {
+            margin: 8px 0;
+            font-size: 1rem;
+            color: #555;
+         }
+         .course-image img {
+            max-width: 400px;
+            border-radius: 10px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+         }
+
+         /* Lessons */
+         .lessons h2 {
+            margin-bottom: 15px;
+         }
+         .lesson {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+            transition: transform 0.2s ease;
+         }
+         .lesson:hover {
+            transform: translateY(-3px);
+         }
+         .lesson h3 {
+            color: #007bff;
+            margin-bottom: 10px;
+         }
+         .lesson p {
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+            color: #444;
+         }
+         video {
+            width: 100%;
+            border-radius: 8px;
+            margin: 15px 0;
+            background: #000;
+         }
+
+         /* Files Section */
+         .files {
+            margin-top: 15px;
+         }
+         .files h4 {
+            margin-bottom: 10px;
+         }
+         .files a {
+            display: block;
+            margin: 5px 0;
+            padding: 12px;
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+         }
+         .files a:hover {
+            background: #007bff;
+            color: white;
+         }
+
+         /* Buttons */
+         .purchase-btn {
+            background: #28a745;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+            transition: background 0.3s ease;
+         }
+         .purchase-btn:hover {
+            background: #218838;
+         }
+
+         /* Error / Alerts */
+         .error {
+            background: #fff3f3;
+            color: #d9534f;
+            border: 1px solid #f5c6cb;
+            padding: 20px;
+            border-radius: 6px;
+            margin: 20px 0;
+         }
+
+         /* Loading */
+         .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 18px;
+            color: #666;
+         }
+
+         /* Responsive */
+         @media (max-width: 768px) {
+            .m-container {
+               flex-direction: column;
+               align-items: center;
+               text-align: center;
+            }
+            .course-info {
+               max-width: 100%;
+            }
+            .course-image img {
+               max-width: 100%;
+            }
+         }
+      </style>
+   </head>
+   <body>
+      <div class="container" id="content"></div>
+
+      <script>
+         const urlParams = new URLSearchParams(window.location.search);
+         const courseId = urlParams.get("courseId");
+
+         if (!courseId) {
+            document.getElementById("content").innerHTML = `
+               <div class="error">
+                  <h2>No Course ID Provided</h2>
+                  <p>Please add ?courseId=YOUR_COURSE_ID to the URL</p>
+                  <p>Example: course-viewer.html?courseId=673abc123def456789012345</p>
+               </div>
+            `;
+         } else {
+            loadCourseContent(courseId);
+         }
+
+         async function loadCourseContent(courseId) {
+            const container = document.getElementById("content");
+            container.innerHTML =
+               '<div class="loading">⏳ Loading course content...</div>';
+
+            try {
+               const response = await axios.get(
+                  `/api/v1/course/${courseId}/content`,
+                  {
+                     withCredentials: true,
+                  }
+               );
+
+               const content = response.data;
+
+               container.innerHTML = `
+                  <div class="m-container">
+                     <div class="course-info">
+                        <h1>${content.course.title}</h1>
+                        <p>${content.course.description}</p>
+                        <p><strong>Total Duration:</strong> ${content.totalDuration} minutes</p>
+                        <p><strong>Access Expires:</strong> ${new Date(content.enrollment.expiresAt).toLocaleDateString()}</p>
+                        <p><strong>Progress:</strong> ${content.enrollment.progress.completionPercentage}% complete</p>
+                     </div>
+                     <div class="course-image">
+                        <img src="${content.course["thumbnail-image"].url}" alt="course-thumbnail-image" />
+                     </div>
+                  </div>
+                  
+                  <div class="lessons">
+                     <h2>📚 Course Lessons</h2>
+                     ${content.lessons
+                        .map(
+                           (lesson, index) => `
+                        <div class="lesson">
+                           <h3>Lesson ${index + 1}: ${lesson.title}</h3>
+                           <p><strong>Duration:</strong> ${lesson.duration} minutes</p>
+                           
+                           <video controls preload="metadata">
+                              <source src="${lesson.video.url}" type="video/mp4">
+                              Your browser does not support the video tag.
+                           </video>
+                           
+                           ${
+                              lesson.notes && lesson.notes.length > 0
+                                 ? `
+                              <div class="files">
+                                 <h4>📂 Course Materials:</h4>
+                                 ${lesson.notes
+                                    .map(
+                                       (note) => `
+                                    <a href="${note.fileUrl}" target="_blank" download="${note.fileName}">
+                                       📄 ${note.fileName}
+                                    </a>
+                                 `
+                                    )
+                                    .join("")}
+                              </div>
+                           `
+                                 : ""
+                           }
+                        </div>
+                     `
+                        )
+                        .join("")}
+                  </div>
+               `;
+            } catch (error) {
+               console.error("Failed to load course content:", error);
+
+               if (error.response?.status === 403) {
+                  try {
+                     const courseResponse = await axios.get(
+                        `/api/v1/course/preview`
+                     );
+                     const course = courseResponse.data.courses.find(
+                        (c) => c._id === courseId
+                     );
+
+                     if (course) {
+                        container.innerHTML = `
+                           <div class="m-container">
+                              <div class="course-info">
+                                 <h1>${course.title}</h1>
+                                 <p>${course.description}</p>
+                                 <p><strong>Price:</strong> ${course.price}</p>
+                                 <button class="purchase-btn" onclick="purchaseCourse('${courseId}')">
+                                    Purchase Course - ${course.price}
+                                 </button>
+                              </div>
+                           </div>
+                           <div class="error">
+                              <h2>🚫 Course Access Required</h2>
+                              <p>You need to purchase this course to access its content.</p>
+                           </div>
+                        `;
+                     } else {
+                        container.innerHTML =
+                           '<div class="error">Course not found</div>';
+                     }
+                  } catch {
+                     container.innerHTML =
+                        '<div class="error">Course access denied and unable to load course details</div>';
+                  }
+               } else if (error.response?.status === 401) {
+                  container.innerHTML = `
+                     <div class="error">
+                        <h2>🔑 Authentication Required</h2>
+                        <p>Please <a href="/api/v1/user/signin">log in</a> to access course content.</p>
+                     </div>
+                  `;
+               } else {
+                  container.innerHTML = `
+                     <div class="error">
+                        <h2>⚠️ Error Loading Course</h2>
+                        <p>${error.response?.data?.error || "Failed to load course content"}</p>
+                     </div>
+                  `;
+               }
+            }
+         }
+
+         async function purchaseCourse(courseId) {
+            try {
+               await axios.post(
+                  `/api/v1/course/purchase/${courseId}`,
+                  {},
+                  { withCredentials: true }
+               );
+               alert("✅ Course purchased successfully!");
+               loadCourseContent(courseId);
+            } catch (error) {
+               console.error("Purchase failed:", error);
+
+               if (error.response?.status === 401) {
+                  alert("Please log in first");
+                  window.location.href = "/";
+               } else {
+                  alert(
+                     "Purchase failed: " +
+                        (error.response?.data?.error || "Unknown error")
+                  );
+               }
+            }
+         }
+      </script>
+   </body>
+</html>
