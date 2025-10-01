@@ -3,17 +3,6 @@ const fs = require("fs");
 const path = require("path");
 const { date } = require("zod");
 
-const getPrivateKey = () => {
-   // const keyPath =
-   //    process.env.CLOUDFRONT_PRIVATE_KEY_PATH ||
-   //    "./keys/cloudfront-private.pem";
-   try {
-      return process.env.CLOUDFRONT_PRIVATE_KEY;
-   } catch (err) {
-      throw new Error("Failed to read Cloudfront Private Key" );
-   }
-};
-
 const generateCloudFrontPolicy = (userId, courseId, expiryDate) => {
    return {
       Statement: [
@@ -51,7 +40,7 @@ const refreshCookies = (req, userId, courseId, expiryDate) => {
 
 const setCloudfrontCookies = (res, userId, courseId, expiryDate) => {
    console.log(userId);
-   const privateKey = getPrivateKey();
+   const privateKey = process.env.CLOUDFRONT_PRIVATE_KEY.replace(/\\n/g, "\n");
    const policy = generateCloudFrontPolicy(userId, courseId, expiryDate);
    const signedCookies = getSignedCookies({
       keyPairId: process.env.CLOUDFRONT_KEY_PAIR_ID,
@@ -65,7 +54,7 @@ const setCloudfrontCookies = (res, userId, courseId, expiryDate) => {
          secure: process.env.NODE_ENV === "production",
          sameSite: "lax",
          // domain: new URL(process.env.CLOUDFRONT_DOMAIN).hostname, // 👈 important
-         path: "/", 
+         path: "/",
          expires: new Date(
             policy.Statement[0].Condition.DateLessThan["AWS:EpochTime"] * 1000
          ),
