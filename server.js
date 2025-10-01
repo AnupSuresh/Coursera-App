@@ -1,7 +1,5 @@
 // Load environment variables from .env file
 require("dotenv").config();
-const fs = require("fs");
-const path = require("path");
 // Express app setup
 const express = require("express");
 const app = express();
@@ -48,17 +46,6 @@ const s3Router = require("./routes/s3.routes");
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/course", courseRouter);
 app.use("/api/v1/s3", s3Router);
-
-const keyPath = path.join("./keys/cloudfront-private.pem");
-
-// Read the key file
-let key = fs.readFileSync(keyPath, "utf8");
-
-// Replace actual newlines with '\n'
-key = key.replace(/\r?\n/g, "\\n");
-
-// Print the single-line key ready for env variable
-console.log(key);
 
 app.get("/", (req, res) => {
    res.sendFile(__dirname + "/public/auth.html");
