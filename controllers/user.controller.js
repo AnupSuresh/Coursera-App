@@ -66,6 +66,7 @@ const signUp = async (req, res) => {
 };
 const signIn = async (req, res) => {
    try {
+      console.log("signin log")
       const signInDataScehma = z.object({
          email: z.string().email(),
          password: z
