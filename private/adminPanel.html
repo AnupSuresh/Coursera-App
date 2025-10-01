@@ -223,7 +223,7 @@
          <div class="form-container">
             <h4>Add New Lesson</h4>
             <input type="text" id="lesson-title" placeholder="Lesson Title" />
-            <input type="text" id="video-url" placeholder="Video URL" />
+            <input type="file" id="lesson-video" accept="video/*" />
             <input
                type="number"
                id="lesson-duration"
@@ -345,13 +345,52 @@
 
          async function loadCourseContent(courseId) {
             try {
-               // This would be your API endpoint to get course content
-               // const res = await axios.get(`${backendUrl}/api/v1/course/content/${courseId}`, { withCredentials: true });
-               // For now, we'll show empty state
-               document.getElementById("lessons-container").innerHTML =
-                  "<p>No lessons added yet.</p>";
+               const res = await axios.get(
+                  `${backendUrl}/api/v1/course/${courseId}/content`,
+                  {
+                     withCredentials: true,
+                  }
+               );
+
+               const content = res.data;
+               const container = document.getElementById("lessons-container");
+
+               if (content.lessons && content.lessons.length > 0) {
+                  container.innerHTML = content.lessons
+                     .map(
+                        (lesson, index) => `
+            <div class="lesson-item">
+               <h4>Lesson ${index + 1}: ${lesson.title}</h4>
+               <p><strong>Duration:</strong> ${lesson.duration} minutes</p>
+               <p><strong>Video:</strong> ${lesson.video.key}</p>
+               <p><strong>Notes:</strong> ${lesson.notes.length} files</p>
+               <div class="notes-list">
+                  ${lesson.notes
+                     .map(
+                        (note) => `
+                     <div class="note-item">
+                        <span>${note.fileName}</span>
+                     </div>
+                  `
+                     )
+                     .join("")}
+               </div>
+            </div>
+         `
+                     )
+                     .join("");
+               } else {
+                  container.innerHTML = "<p>No lessons added yet.</p>";
+               }
             } catch (error) {
                console.error("Failed to load course content:", error);
+               if (error.response?.status === 403) {
+                  document.getElementById("lessons-container").innerHTML =
+                     "<p>This course has no content yet.</p>";
+               } else {
+                  document.getElementById("lessons-container").innerHTML =
+                     "<p>Error loading course content.</p>";
+               }
             }
          }
 
@@ -391,7 +430,7 @@
 
          function resetLessonForm() {
             document.getElementById("lesson-title").value = "";
-            document.getElementById("video-url").value = "";
+            document.getElementById("lesson-video").value = "";
             document.getElementById("lesson-duration").value = "";
             document.getElementById("lesson-file").value = "";
             selectedFiles = [];
@@ -439,60 +478,81 @@
                const title = document
                   .getElementById("lesson-title")
                   .value.trim();
-               const videoUrl = document
-                  .getElementById("video-url")
-                  .value.trim();
+               const videoFile =
+                  document.getElementById("lesson-video").files[0];
                const duration = parseInt(
                   document.getElementById("lesson-duration").value
                );
 
-               if (!title || !videoUrl || !duration) {
-                  alert("Please fill in all lesson fields");
+               if (!title || !videoFile || !duration) {
+                  alert(
+                     "Please fill in all lesson fields including video file"
+                  );
                   return;
                }
 
-               try {
-                  // Upload files and create lesson
-                  const notes = [];
+               const button = document.getElementById("add-lesson");
+               button.disabled = true;
+               button.textContent = "Adding Lesson...";
 
+               try {
+                  // Upload video first
+                  const videoPresignRes = await axios.get(
+                     `${backendUrl}/api/v1/s3/upload/lesson-video/pre-signed-url?courseId=${currentCourseId}&fileName=${encodeURIComponent(videoFile.name)}&fileType=${encodeURIComponent(videoFile.type)}`,
+                     { withCredentials: true }
+                  );
+
+                  await axios.put(videoPresignRes.data.url, videoFile, {
+                     headers: { "Content-Type": videoFile.type },
+                  });
+
+                  // Upload notes files
+                  const notes = [];
                   for (const file of selectedFiles) {
-                     // Get presigned URL for file upload
-                     const presignRes = await axios.get(
-                        `${backendUrl}/api/v1/s3/upload/lesson-file/pre-signed-url?fileName=${encodeURIComponent(file.name)}&fileType=${encodeURIComponent(file.type)}`,
+                     const filePresignRes = await axios.get(
+                        `${backendUrl}/api/v1/s3/upload/lesson-file/pre-signed-url?courseId=${currentCourseId}&fileName=${encodeURIComponent(file.name)}&fileType=${encodeURIComponent(file.type)}`,
                         { withCredentials: true }
                      );
 
-                     // Upload file to S3
-                     await axios.put(presignRes.data.url, file, {
+                     await axios.put(filePresignRes.data.url, file, {
                         headers: { "Content-Type": file.type },
                      });
 
                      notes.push({
                         fileName: file.name,
-                        fileUrl: presignRes.data.publicUrl,
+                        fileKey: filePresignRes.data.key,
                         fileType: file.type,
                      });
                   }
 
+                  // Add lesson to course
                   const lessonData = {
-                     courseId: currentCourseId,
-                     lesson: {
-                        title,
-                        videoUrl,
-                        duration,
-                        notes,
-                     },
+                     title,
+                     videoKey: videoPresignRes.data.key,
+                     duration,
+                     notes,
                   };
 
-                  // This would be your API endpoint to add lesson content
-                  // const res = await axios.post(`${backendUrl}/api/v1/course/content/lesson`, lessonData, { withCredentials: true });
+                  const response = await axios.post(
+                     `${backendUrl}/api/v1/course/${currentCourseId}/lesson`,
+                     lessonData,
+                     { withCredentials: true }
+                  );
 
-                  alert("Lesson added successfully!");
+                  alert(
+                     `Lesson added successfully! Total lessons: ${response.data.totalLessons}`
+                  );
                   resetLessonForm();
                   loadCourseContent(currentCourseId);
                } catch (error) {
                   console.error("Failed to add lesson:", error);
-                  alert("Failed to add lesson");
+                  alert(
+                     "Failed to add lesson: " +
+                        (error.response?.data?.error || error.message)
+                  );
+               } finally {
+                  button.disabled = false;
+                  button.textContent = "Add Lesson";
                }
             });
 
