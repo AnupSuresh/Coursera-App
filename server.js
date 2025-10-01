@@ -36,7 +36,7 @@ app.use(
       credentials: true,
    })
 );
-app.use(express.static("public"));
+app.use(express.static(path.join(process.cwd(), "public")));
 
 // Routers
 const userRouter = require("./routes/user.routes");
