@@ -39,7 +39,7 @@ const refreshCookies = (req, userId, courseId, expiryDate) => {
 };
 
 const setCloudfrontCookies = (res, userId, courseId, expiryDate) => {
-   console.log(userId);
+   // console.log(userId);
    const privateKey = process.env.CLOUDFRONT_PRIVATE_KEY.replace(/\\n/g, "\n");
    const policy = generateCloudFrontPolicy(userId, courseId, expiryDate);
    const signedCookies = getSignedCookies({

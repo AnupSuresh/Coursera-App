@@ -95,7 +95,7 @@ uploadRouter.delete("/delete", auth, async (req, res) => {
    try {
       const { keys } = req.query;
       const deleted = await deleteS3Files(keys);
-      console.log(deleted);
+      console.log("deleted: ", deleted);
       res.status(200).json({ message: "File deleted successfully" });
    } catch (error) {
       res.status(500).json({

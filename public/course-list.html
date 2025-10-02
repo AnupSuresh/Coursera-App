@@ -3,6 +3,7 @@
    <head>
       <title>Available Courses</title>
       <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+      <script src="/js/axiosInstance.js"></script>
       <style>
          body {
             font-family: Arial, sans-serif;
@@ -89,15 +90,13 @@
 
          async function loadUserInfo() {
             try {
-               const response = await axios.get("/api/v1/user/me", {
-                  withCredentials: true,
-               });
+               const response = await axiosInstance.get("/user/me");
                currentUser = response.data.user;
 
                // Load owned courses
-               const ownedResponse = await axios.get("/api/v1/course/owned", {
-                  withCredentials: true,
-               });
+               const ownedResponse = await axiosInstance.get(
+                  "/course/owned"
+               );
                ownedCourseIds = ownedResponse.data.courses.map((c) => c._id);
 
                document.getElementById("user-status").innerHTML = `
@@ -116,7 +115,9 @@
 
          async function loadCourses() {
             try {
-               const response = await axios.get("/api/v1/course/preview");
+               const response = await axiosInstance.get(
+                  "/course/preview"
+               );
                const courses = response.data.courses;
 
                const container = document.getElementById("courses-container");
@@ -187,12 +188,8 @@
             }
 
             try {
-               const response = await axios.post(
-                  `/api/v1/course/purchase/${courseId}`,
-                  {},
-                  {
-                     withCredentials: true,
-                  }
+               const response = await axiosInstance.post(
+                  `/course/purchase/${courseId}`
                );
 
                alert("Course purchased successfully!");
@@ -210,10 +207,8 @@
 
          async function logout() {
             try {
-               await axios.post(
-                  "/api/v1/user/signOut",
-                  {},
-                  { withCredentials: true }
+               await axiosInstance.post(
+                  "/user/signOut"
                );
                window.location.reload();
             } catch (error) {

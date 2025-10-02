@@ -4,6 +4,7 @@
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+      <script src="/js/axiosInstance.js"></script>
       <title>Course Admin Panel</title>
       <style>
          body {
@@ -256,7 +257,7 @@
       <div class="course-list" id="course-list"></div>
 
       <script>
-         const backendUrl = "";
+         
          let editingCourseId = null;
          let currentCourseId = null;
          let selectedFiles = [];
@@ -264,9 +265,8 @@
          // Fetch all courses and render
          async function loadCourses() {
             try {
-               const res = await axios.get(
-                  `${backendUrl}/api/v1/course/preview`,
-                  { withCredentials: true }
+               const res = await axiosInstance.get(
+                  "/course/preview"
                );
                const courses = res.data.courses;
                const courseList = document.getElementById("course-list");
@@ -345,11 +345,8 @@
 
          async function loadCourseContent(courseId) {
             try {
-               const res = await axios.get(
-                  `${backendUrl}/api/v1/course/${courseId}/content`,
-                  {
-                     withCredentials: true,
-                  }
+               const res = await axiosInstance.get(
+                  `/course/${courseId}/content`
                );
 
                const content = res.data;
@@ -497,9 +494,8 @@
 
                try {
                   // Upload video first
-                  const videoPresignRes = await axios.get(
-                     `${backendUrl}/api/v1/s3/upload/lesson-video/pre-signed-url?courseId=${currentCourseId}&fileName=${encodeURIComponent(videoFile.name)}&fileType=${encodeURIComponent(videoFile.type)}`,
-                     { withCredentials: true }
+                  const videoPresignRes = await axiosInstance.get(
+                     `/s3/upload/lesson-video/pre-signed-url?courseId=${currentCourseId}&fileName=${encodeURIComponent(videoFile.name)}&fileType=${encodeURIComponent(videoFile.type)}`
                   );
 
                   await axios.put(videoPresignRes.data.url, videoFile, {
@@ -509,9 +505,8 @@
                   // Upload notes files
                   const notes = [];
                   for (const file of selectedFiles) {
-                     const filePresignRes = await axios.get(
-                        `${backendUrl}/api/v1/s3/upload/lesson-file/pre-signed-url?courseId=${currentCourseId}&fileName=${encodeURIComponent(file.name)}&fileType=${encodeURIComponent(file.type)}`,
-                        { withCredentials: true }
+                     const filePresignRes = await axiosInstance.get(
+                        `/s3/upload/lesson-file/pre-signed-url?courseId=${currentCourseId}&fileName=${encodeURIComponent(file.name)}&fileType=${encodeURIComponent(file.type)}`
                      );
 
                      await axios.put(filePresignRes.data.url, file, {
@@ -533,10 +528,9 @@
                      notes,
                   };
 
-                  const response = await axios.post(
-                     `${backendUrl}/api/v1/course/${currentCourseId}/lesson`,
-                     lessonData,
-                     { withCredentials: true }
+                  const response = await axiosInstance.post(
+                     `/course/${currentCourseId}/lesson`,
+                     lessonData
                   );
 
                   alert(
@@ -561,9 +555,8 @@
                return;
 
             try {
-               const res = await axios.delete(
-                  `${backendUrl}/api/v1/course/delete/${courseId}`,
-                  { withCredentials: true }
+               const res = await axiosInstance.delete(
+                  `/course/delete/${courseId}`
                );
                alert(res.data.message || "Course deleted!");
                loadCourses();
@@ -600,9 +593,8 @@
                   let updateData = { title, description, price };
 
                   if (file) {
-                     const presignRes = await axios.get(
-                        `${backendUrl}/api/v1/s3/upload/thumbnail/pre-signed-url?courseName=${encodeURIComponent(title)}&fileName=${encodeURIComponent(file.name)}&fileType=${encodeURIComponent(file.type)}`,
-                        { withCredentials: true }
+                     const presignRes = await axiosInstance.get(
+                        `/s3/upload/thumbnail/pre-signed-url?courseName=${encodeURIComponent(title)}&fileName=${encodeURIComponent(file.name)}&fileType=${encodeURIComponent(file.type)}`
                      );
                      key = presignRes.data.key;
                      const { url } = presignRes.data;
@@ -614,10 +606,9 @@
                   }
 
                   if (editingCourseId) {
-                     const res = await axios.put(
-                        `${backendUrl}/api/v1/course/update/${editingCourseId}`,
-                        updateData,
-                        { withCredentials: true }
+                     const res = await axiosInstance.put(
+                        `/course/update/${editingCourseId}`,
+                        updateData
                      );
                      alert(res.data.message || "Course updated!");
                      editingCourseId = null;
@@ -628,10 +619,9 @@
                         return;
                      }
 
-                     const res = await axios.post(
-                        `${backendUrl}/api/v1/course/create`,
-                        updateData,
-                        { withCredentials: true }
+                     const res = await axiosInstance.post(
+                        "/course/create",
+                        updateData
                      );
                      alert(res.data.message || "Course created!");
                   }
@@ -644,8 +634,8 @@
                      error.response?.data || error.message
                   );
                   if (key) {
-                     const deleteOrphanfile = await axios.delete(
-                        `${backendUrl}/api/v1/s3/delete?key=${key}`
+                     const deleteOrphanfile = await axiosInstance.delete(
+                        `/s3/delete?key=${key}`
                      );
                      console.log(
                         "deleted",

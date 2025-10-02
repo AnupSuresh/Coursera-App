@@ -47,7 +47,7 @@ const purchaseCourse = async (req, res) => {
          expiryDate
       );
 
-      console.log("Cookies set:", setCookies);
+      // console.log("Cookies set:", setCookies);
 
       res.status(200).json({
          message: "Course purchased successfully!",

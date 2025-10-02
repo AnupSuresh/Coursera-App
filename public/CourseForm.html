@@ -1,71 +1,78 @@
 <!doctype html>
 <html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Course - Creation</title>
+      <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+      <script src="/js/axiosInstance.js"></script>
+   </head>
+   <body>
+      <div class="mainContainer">
+         <form id="courseForm">
+            <input
+               type="text"
+               id="title"
+               name="title"
+               placeholder="Course Title"
+            />
+            <input
+               type="text"
+               id="description"
+               name="description"
+               placeholder="Description"
+            />
+            <input type="number" id="price" name="price" placeholder="Price" />
+            <input type="file" id="image" name="image" />
+            <button type="submit">Submit</button>
+         </form>
+         <h5 id="FormSubmitStatus">Status:</h5>
+      </div>
+      <script>
+         document
+            .getElementById("courseForm")
+            .addEventListener("submit", async (e) => {
+               const title = document.getElementById("title").value;
+               const description = document.getElementById("description").value;
+               const price = document.getElementById("price").value;
+               const imageFile = document.getElementById("image").files[0];
 
-<head>
-   <meta charset="UTF-8" />
-   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-   <title>Course - Creation</title>
-   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-</head>
-
-<body>
-   <div class="mainContainer">
-      <form id="courseForm">
-         <input type="text" id="title" name="title" placeholder="Course Title" />
-         <input type="text" id="description" name="description" placeholder="Description" />
-         <input type="number" id="price" name="price" placeholder="Price" />
-         <input type="file" id="image" name="image" />
-         <button type="submit">Submit</button>
-      </form>
-      <h5 id="FormSubmitStatus">Status:</h5>
-   </div>
-   <script>
-      document
-         .getElementById("courseForm")
-         .addEventListener("submit", async (e) => {
-            const title = document.getElementById("title").value;
-            const description = document.getElementById("description").value;
-            const price = document.getElementById("price").value;
-            const imageFile = document.getElementById("image").files[0];
-
-            if (!title) {
-               alert("Please enter a course title");
-               return; // stop execution
-            }
-            if (!description) {
-               alert("Please enter a description");
-               return;
-            }
-            if (!price || isNaN(price)) {
-               alert("Please enter a valid price");
-               return;
-            }
-            if (!imageFile) {
-               alert("Please select an image");
-               return;
-            }
-
-            try {
-               e.preventDefault();
-               const accessType = "private";
-               const userId = localStorage.getItem("userId");
-               const response = await axios.get(
-                  "/api/v1/upload/pre-signed-url"
-               );
-               const { url, key } = response.data;
-
-               if (url && key) {
-                  const response = await axios.post(
-                     url,
-                     {},
-                     { Headers: {} }
-                  );
+               if (!title) {
+                  alert("Please enter a course title");
+                  return; // stop execution
                }
-            } catch (error) {
-               alert(error.message);
-            }
-         });
-   </script>
-</body>
+               if (!description) {
+                  alert("Please enter a description");
+                  return;
+               }
+               if (!price || isNaN(price)) {
+                  alert("Please enter a valid price");
+                  return;
+               }
+               if (!imageFile) {
+                  alert("Please select an image");
+                  return;
+               }
 
+               try {
+                  e.preventDefault();
+                  const accessType = "private";
+                  const userId = localStorage.getItem("userId");
+                  const response = await axiosInstance.get(
+                     "/api/v1/upload/pre-signed-url"
+                  );
+                  const { url, key } = response.data;
+
+                  if (url && key) {
+                     const response = await axios.put(
+                        url,
+                        { Headers: {} }
+                     );
+                  }
+               } catch (error) {
+                  alert(error.message);
+               }
+            });
+      </script>
+   </body>
 </html>

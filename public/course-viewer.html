@@ -3,6 +3,7 @@
    <head>
       <title>Course Content Viewer</title>
       <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+      <script src="/js/axiosInstance.js"></script>
       <style>
          /* Global Styles */
          body {
@@ -193,11 +194,8 @@
                '<div class="loading">⏳ Loading course content...</div>';
 
             try {
-               const response = await axios.get(
-                  `/api/v1/course/${courseId}/content`,
-                  {
-                     withCredentials: true,
-                  }
+               const response = await axiosInstance.get(
+                  `/course/${courseId}/content`
                );
 
                const content = response.data;
@@ -259,8 +257,8 @@
 
                if (error.response?.status === 403) {
                   try {
-                     const courseResponse = await axios.get(
-                        `/api/v1/course/preview`
+                     const courseResponse = await axiosInstance.get(
+                        `/course/preview`
                      );
                      const course = courseResponse.data.courses.find(
                         (c) => c._id === courseId
@@ -311,10 +309,8 @@
 
          async function purchaseCourse(courseId) {
             try {
-               await axios.post(
-                  `/api/v1/course/purchase/${courseId}`,
-                  {},
-                  { withCredentials: true }
+               await axiosInstance.post(
+                  `/course/purchase/${courseId}`
                );
                alert("✅ Course purchased successfully!");
                loadCourseContent(courseId);
