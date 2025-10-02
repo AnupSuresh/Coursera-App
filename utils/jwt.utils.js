@@ -13,7 +13,7 @@ const generateTokens = (payload) => {
          }
       );
       const refreshToken = jwt.sign(
-         { id: payload.id },
+         { id: payload.id, role: payload.role },
          process.env.JWT_REFRESH_SECRET,
          {
             expiresIn: REFRESH_TOKEN_EXPIRES,

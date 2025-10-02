@@ -1,268 +1,571 @@
 <!doctype html>
 <html lang="en">
-   <head>
-      <meta charset="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-      <title>Auth with MongoDB</title>
-   </head>
+<head>
+   <meta charset="UTF-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+   <title>Course Platform - Auth</title>
+   <style>
+      * {
+         margin: 0;
+         padding: 0;
+         box-sizing: border-box;
+      }
 
-   <body>
-      <div id="loggedOutDiv" hidden>
-         <div>
-            <h4>SignUP</h4>
-            <label for="su_fname">First Name: </label>
-            <input type="text" name="firstName" id="su_fname" />
-            <br />
-            <br />
-            <label for="su_lname">Last Name: </label>
-            <input type="text" name="lastName" id="su_lname" />
-            <br />
-            <br />
-            <label for="su_email">Email: </label>
-            <input type="email" name="email" id="su_email" />
-            <br />
-            <br />
-            <label for="su_password">Password: </label>
-            <input type="text" name="password" id="su_password" />
-            <br />
-            <br />
-            <!-- <input
-               type="text"
-               name="adminSecret"
-               value="iamanadmin"
-               id="adminSecret"
-               hidden
-            /> -->
-            <button onclick="SignUp()">Sign Up</button>
+      body {
+         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+         min-height: 100vh;
+         display: flex;
+         justify-content: center;
+         align-items: center;
+         padding: 20px;
+      }
+
+      .container {
+         background: white;
+         border-radius: 20px;
+         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+         overflow: hidden;
+         max-width: 900px;
+         width: 100%;
+         min-height: 500px;
+      }
+
+      .auth-container {
+         display: grid;
+         grid-template-columns: 1fr 1fr;
+         gap: 0;
+      }
+
+      .auth-section {
+         padding: 40px;
+      }
+
+      .signup-section {
+         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+         color: white;
+      }
+
+      .signin-section {
+         background: white;
+      }
+
+      h2 {
+         margin-bottom: 30px;
+         font-size: 28px;
+         font-weight: 600;
+      }
+
+      .signin-section h2 {
+         color: #667eea;
+      }
+
+      .form-group {
+         margin-bottom: 20px;
+      }
+
+      label {
+         display: block;
+         margin-bottom: 8px;
+         font-weight: 500;
+         font-size: 14px;
+      }
+
+      .signin-section label {
+         color: #333;
+      }
+
+      input {
+         width: 100%;
+         padding: 12px 15px;
+         border: 2px solid transparent;
+         border-radius: 8px;
+         font-size: 14px;
+         transition: all 0.3s;
+         background: rgba(255, 255, 255, 0.9);
+      }
+
+      .signup-section input {
+         background: rgba(255, 255, 255, 0.2);
+         color: white;
+         border-color: rgba(255, 255, 255, 0.3);
+      }
+
+      .signup-section input::placeholder {
+         color: rgba(255, 255, 255, 0.7);
+      }
+
+      .signin-section input {
+         border-color: #e0e0e0;
+      }
+
+      input:focus {
+         outline: none;
+         border-color: #667eea;
+         box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+
+      button {
+         width: 100%;
+         padding: 14px;
+         border: none;
+         border-radius: 8px;
+         font-size: 16px;
+         font-weight: 600;
+         cursor: pointer;
+         transition: all 0.3s;
+         margin-top: 10px;
+      }
+
+      .signup-section button {
+         background: white;
+         color: #667eea;
+      }
+
+      .signup-section button:hover {
+         background: #f0f0f0;
+         transform: translateY(-2px);
+         box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+      }
+
+      .signin-section button {
+         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+         color: white;
+      }
+
+      .signin-section button:hover {
+         transform: translateY(-2px);
+         box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+      }
+
+      button:disabled {
+         opacity: 0.6;
+         cursor: not-allowed;
+         transform: none !important;
+      }
+
+      .rate-limit-notice {
+         color: #ff6b6b;
+         font-size: 13px;
+         margin-top: 10px;
+         text-align: center;
+         font-weight: 500;
+      }
+
+      /* User Info Styles */
+      .user-container {
+         padding: 60px;
+         text-align: center;
+      }
+
+      .status-badge {
+         display: inline-block;
+         padding: 8px 20px;
+         border-radius: 20px;
+         font-size: 14px;
+         font-weight: 600;
+         margin-bottom: 30px;
+      }
+
+      .status-badge.online {
+         background: #d4edda;
+         color: #155724;
+      }
+
+      .status-badge.offline {
+         background: #f8d7da;
+         color: #721c24;
+      }
+
+      .user-card {
+         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+         color: white;
+         padding: 40px;
+         border-radius: 15px;
+         margin-bottom: 30px;
+         box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+      }
+
+      .user-card h3 {
+         font-size: 32px;
+         margin-bottom: 20px;
+      }
+
+      .user-info-grid {
+         display: grid;
+         grid-template-columns: repeat(2, 1fr);
+         gap: 15px;
+         text-align: left;
+         margin-top: 20px;
+      }
+
+      .info-item {
+         background: rgba(255, 255, 255, 0.1);
+         padding: 15px;
+         border-radius: 8px;
+      }
+
+      .info-label {
+         font-size: 12px;
+         opacity: 0.8;
+         margin-bottom: 5px;
+      }
+
+      .info-value {
+         font-size: 16px;
+         font-weight: 600;
+      }
+
+      .action-buttons {
+         display: flex;
+         gap: 15px;
+         justify-content: center;
+      }
+
+      .action-buttons button {
+         width: auto;
+         padding: 12px 30px;
+      }
+
+      .btn-primary {
+         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+         color: white;
+      }
+
+      .btn-secondary {
+         background: #6c757d;
+         color: white;
+      }
+
+      .btn-primary:hover, .btn-secondary:hover {
+         transform: translateY(-2px);
+         box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+         .auth-container {
+            grid-template-columns: 1fr;
+         }
+
+         .user-info-grid {
+            grid-template-columns: 1fr;
+         }
+
+         .action-buttons {
+            flex-direction: column;
+         }
+
+         .action-buttons button {
+            width: 100%;
+         }
+      }
+
+      /* Loading animation */
+      @keyframes spin {
+         to { transform: rotate(360deg); }
+      }
+
+      .loading {
+         display: inline-block;
+         width: 16px;
+         height: 16px;
+         border: 2px solid rgba(255, 255, 255, 0.3);
+         border-top-color: white;
+         border-radius: 50%;
+         animation: spin 0.8s linear infinite;
+         margin-left: 8px;
+      }
+   </style>
+</head>
+
+<body>
+   <!-- Auth Forms -->
+   <div class="container" id="loggedOutDiv" hidden>
+      <div class="auth-container">
+         <!-- Sign Up Section -->
+         <div class="auth-section signup-section">
+            <h2>Create Account</h2>
+            <div class="form-group">
+               <label for="su_fname">First Name</label>
+               <input type="text" id="su_fname" placeholder="Enter your first name" />
+            </div>
+            <div class="form-group">
+               <label for="su_lname">Last Name</label>
+               <input type="text" id="su_lname" placeholder="Enter your last name" />
+            </div>
+            <div class="form-group">
+               <label for="su_email">Email</label>
+               <input type="email" id="su_email" placeholder="Enter your email" />
+            </div>
+            <div class="form-group">
+               <label for="su_password">Password</label>
+               <input type="password" id="su_password" placeholder="Create a password" />
+            </div>
+            <button onclick="SignUp()" id="signUpBtn">Sign Up</button>
          </div>
-         <div>
-            <h4>SignIN</h4>
-            <label for="si_email">Email: </label>
-            <input type="email" name="email" id="si_email" />
-            <br />
-            <br />
-            <label for="si_password">Password: </label>
-            <input type="text" name="password" id="si_password" />
-            <br />
-            <br />
-            <button id="signBtn" onclick="SignIn()">Sign In</button>
-            <i id="counter"></i>
+
+         <!-- Sign In Section -->
+         <div class="auth-section signin-section">
+            <h2>Welcome Back</h2>
+            <div class="form-group">
+               <label for="si_email">Email</label>
+               <input type="email" id="si_email" placeholder="Enter your email" />
+            </div>
+            <div class="form-group">
+               <label for="si_password">Password</label>
+               <input type="password" id="si_password" placeholder="Enter your password" />
+            </div>
+            <button onclick="SignIn()" id="signInBtn">Sign In</button>
+            <div class="rate-limit-notice" id="counter"></div>
          </div>
       </div>
-      <div id="statusDiv">
-         <h5>Status: <b id="status" style="color: red">LOGGED OUT</b></h5>
+   </div>
+
+   <!-- User Info -->
+   <div class="container" id="userInfoDiv" hidden>
+      <div class="user-container">
+         <div class="status-badge" id="statusBadge">
+            <span id="status">LOGGED OUT</span>
+         </div>
+
+         <div class="user-card">
+            <h3>👋 <span id="userFirstName"></span> <span id="userLastName"></span></h3>
+            <div class="user-info-grid">
+               <div class="info-item">
+                  <div class="info-label">User ID</div>
+                  <div class="info-value" id="userId">-</div>
+               </div>
+               <div class="info-item">
+                  <div class="info-label">Email</div>
+                  <div class="info-value" id="userEmail">-</div>
+               </div>
+               <div class="info-item">
+                  <div class="info-label">Role</div>
+                  <div class="info-value" id="userRole">-</div>
+               </div>
+               <div class="info-item">
+                  <div class="info-label">Status</div>
+                  <div class="info-value">Active</div>
+               </div>
+            </div>
+         </div>
+
+         <div class="action-buttons">
+            <button class="btn-primary" onclick="redirectToAdminPanel()">
+               Admin Panel
+            </button>
+            <button class="btn-secondary" onclick="LogOut()">
+               Log Out
+            </button>
+         </div>
       </div>
-      <div hidden id="userInfoDiv">
-         <h4>User Info:</h4>
-         <p>Id: <i id="userId"></i></p>
-         <p>First Name: <i id="userFirstName"></i></p>
-         <p>Last Name: <i id="userLastName"></i></p>
-         <p>Email: <i id="userEmail"></i></p>
-         <p>Role: <i id="userRole"></i></p>
-         <button onclick="redirectToAdminPanel()">Admin Panel</button>
-         <button onclick="LogOut()">Log out</button>
-      </div>
-      <script>
+   </div>
+
+   <script>
+      const API_BASE = '';  // Empty for same origin
+
+      const SignUp = async () => {
+         const btn = document.getElementById('signUpBtn');
+         const originalText = btn.textContent;
+         btn.disabled = true;
+         btn.innerHTML = 'Creating Account<span class="loading"></span>';
+
+         try {
+            const firstName = document.getElementById("su_fname").value;
+            const lastName = document.getElementById("su_lname").value;
+            const email = document.getElementById("su_email").value;
+            const password = document.getElementById("su_password").value;
+
+            const response = await axios.post(`${API_BASE}/api/v1/user/signup`, {
+               firstName,
+               lastName,
+               email,
+               password
+            });
+
+            alert("✅ " + response.data.message);
+            
+            // Clear form
+            document.getElementById("su_fname").value = '';
+            document.getElementById("su_lname").value = '';
+            document.getElementById("su_email").value = '';
+            document.getElementById("su_password").value = '';
+         } catch (error) {
+            const errorData = error.response?.data?.error?.properties;
+
+            if (errorData) {
+               const errors = [];
+               for (const [field, info] of Object.entries(errorData)) {
+                  if (Array.isArray(info.errors)) {
+                     errors.push(`${field}: ${info.errors.join(", ")}`);
+                  }
+               }
+               alert("❌ Validation Errors:\n" + errors.join("\n"));
+            } else if (typeof error.response?.data?.error === "string") {
+               alert("❌ " + error.response.data.error);
+            } else {
+               alert("❌ An unexpected error occurred. Please try again later.");
+               console.error("Unhandled error:", error);
+            }
+         } finally {
+            btn.disabled = false;
+            btn.textContent = originalText;
+         }
+      };
+
+      const SignIn = async () => {
+         const btn = document.getElementById('signInBtn');
+         const originalText = btn.textContent;
+         btn.disabled = true;
+         btn.innerHTML = 'Signing In<span class="loading"></span>';
+
+         try {
+            const email = document.getElementById("si_email").value;
+            const password = document.getElementById("si_password").value;
+
+            const response = await axios.post(`${API_BASE}/api/v1/user/signin`, {
+               email,
+               password
+            }, { withCredentials: true });
+
+            console.log(response.data.message);
+            await getUserData();
+         } catch (error) {
+            if (error.response?.status === 429) {
+               const retryAfter = error.response.headers["retry-after"];
+               alert(`⏳ Rate limited. Please try again in ${retryAfter} seconds`);
+               setCounter(parseInt(retryAfter));
+            } else if (error.response?.data?.error) {
+               alert("❌ " + error.response.data.error);
+            } else {
+               alert("❌ Network error or server not reachable");
+            }
+         } finally {
+            btn.disabled = false;
+            btn.textContent = originalText;
+         }
+      };
+
+      const setCounter = (retAft) => {
+         const counter = document.getElementById("counter");
+         const btn = document.getElementById("signInBtn");
+         btn.disabled = true;
+
+         const interval = setInterval(() => {
+            counter.textContent = `Please wait ${retAft} seconds...`;
+            retAft--;
+            if (retAft < 0) {
+               clearInterval(interval);
+               counter.textContent = "";
+               btn.disabled = false;
+            }
+         }, 1000);
+      };
+
+      const getUserData = async () => {
+         try {
+            const response = await axios.get(`${API_BASE}/api/v1/user/me`, {
+               withCredentials: true
+            });
+
+            if (response.data?.user) {
+               showUserInfo(response.data.user);
+            }
+         } catch (error) {
+            const errMsg = error.response?.data?.error || "unauthorized";
+            console.log("getUserData error:", errMsg);
+
+            if (errMsg === "Invalid or expired token.") {
+               const success = await tryRefreshToken();
+               if (success) {
+                  return getUserData();
+               } else {
+                  return handleLogout("Session expired. Please log in again.");
+               }
+            }
+
+            if (["Token not provided.", "User no longer exists."].includes(errMsg)) {
+               return handleLogout();
+            } else {
+               console.error("Unexpected error:", error);
+            }
+         }
+      };
+
+      function showUserInfo(user) {
+         const userInfoDiv = document.getElementById("userInfoDiv");
+         const loggedOutDiv = document.getElementById("loggedOutDiv");
          
-         const SignUp = async () => {
-            try {
-               const firstName = document.getElementById("su_fname").value;
-               const lastName = document.getElementById("su_lname").value;
-               const email = document.getElementById("su_email").value;
-               const password = document.getElementById("su_password").value;
-               const adminSecret =
-                  document.getElementById("adminSecret")?.value;
-               // console.log(adminSecret);
-               const response = await axios.post(
-                  `/api/v1/user/signup`,
-                  {
-                     firstName: firstName,
-                     lastName: lastName,
-                     email: email,
-                     password: password,
-                     adminSecret: adminSecret,
-                  }
-               );
-               alert(response.data.message);
-            } catch (error) {
-               const errorData = error.response?.data?.error?.properties;
+         document.getElementById("userId").textContent = user._id;
+         document.getElementById("userFirstName").textContent = user.firstName;
+         document.getElementById("userLastName").textContent = user.lastName;
+         document.getElementById("userEmail").textContent = user.email;
+         document.getElementById("userRole").textContent = user.role.toUpperCase();
+         
+         const statusBadge = document.getElementById("statusBadge");
+         const status = document.getElementById("status");
+         statusBadge.className = "status-badge online";
+         status.textContent = "LOGGED IN";
 
-               if (errorData) {
-                  const errors = [];
+         userInfoDiv.hidden = false;
+         loggedOutDiv.hidden = true;
+      }
 
-                  for (const [field, info] of Object.entries(errorData)) {
-                     if (Array.isArray(info.errors)) {
-                        errors.push(`${field}: ${info.errors.join(", ")}`);
-                     }
-                  }
-                  alert("Validation Errors:\n" + errors.join("\n"));
-               } else if (typeof error.response?.data?.error === "string") {
-                  alert("Error: " + error.response.data.error);
-               } else {
-                  alert(
-                     "An unexpected error occurred. Please try again later."
-                  );
-                  console.error("Unhandled error:", error);
-               }
-            }
-         };
+      async function tryRefreshToken() {
+         try {
+            console.log("Attempting to refresh token...");
+            const response = await axios.get(`${API_BASE}/api/v1/user/refresh-token`, {
+               withCredentials: true
+            });
+            console.log("Token refresh successful");
+            return true;
+         } catch (error) {
+            console.error("Token refresh failed:", error.response?.data || error.message);
+            return false;
+         }
+      }
 
-         const SignIn = async () => {
-            try {
-               const email = document.getElementById("si_email").value;
-               const password = document.getElementById("si_password").value;
-               const response = await axios.post(
-                  `/api/v1/user/signin`,
-                  {
-                     email: email,
-                     password: password,
-                  },
-                  { withCredentials: true }
-               );
-               console.log(response.data.message);
-               alert(response.data.message);
-               getUserData();
-            } catch (error) {
-               if (error.response) {
-                  if (error.response.status === 429) {
-                     document.getElementById("signBtn").disabled = true;
-                     const retryAfter = error.response.headers["retry-after"];
-                     console.log(retryAfter);
-                     console.log(
-                        `Rate limited. Retry after ${retryAfter} seconds`
-                     );
-                     alert(`Rate limited. Retry after ${retryAfter} seconds`);
-                     setCounter(parseInt(retryAfter));
-                  }
-               } else {
-                  alert("Network error or server not reachable");
-               }
-            }
-         };
+      const LogOut = async () => {
+         try {
+            await axios.post(`${API_BASE}/api/v1/user/signout`, {}, {
+               withCredentials: true
+            });
+            handleLogout("✅ Logged out successfully");
+         } catch (error) {
+            console.error("Logout error:", error);
+            // Even if logout fails, clear the UI
+            handleLogout("Logged out");
+         }
+      };
 
-         const setCounter = (retAft) => {
-            const counter = document.getElementById("counter");
-            const interval = setInterval(() => {
-               counter.textContent = retAft;
-               --retAft;
-               if (retAft < 0) {
-                  clearInterval(interval);
-                  counter.textContent = "You can try again now";
-                  document.getElementById("signBtn").disabled = false;
-               }
-            }, 1000);
-         };
+      function handleLogout(message) {
+         document.getElementById("userInfoDiv").hidden = true;
+         document.getElementById("loggedOutDiv").hidden = false;
+         
+         const statusBadge = document.getElementById("statusBadge");
+         const status = document.getElementById("status");
+         statusBadge.className = "status-badge offline";
+         status.textContent = "LOGGED OUT";
 
-         const getUserData = async () => {
-            try {
-               const response = await axios.get(
-                  `/api/v1/user/me`,
-                  {
-                     withCredentials: true,
-                  } 
-               );
-               if (response.data?.user) {
-                  showUserInfo(response.data.user);
-               }
-            } catch (error) {
-               const errMsg = error.response.data?.error || "unauthorized";
-               console.log(errMsg);
-               if (errMsg === "Invalid or expired token.") {
-                  const success = await tryRefreshToken();
-                  if (success) {
-                     return getUserData();
-                  } else {
-                     return handleLogout();
-                  }
-               }
-               if (
-                  ["Token not provided.", "User no longer exists."].includes(
-                     errMsg
-                  )
-               ) {
-                  return handleLogout(errMsg);
-               } else {
-                  alert("Network error or server not reachable");
-               }
-            }
-         };
-
-         function showUserInfo(user) {
-            const userInfoDiv = document.getElementById("userInfoDiv");
-            const loggedOutDiv = document.getElementById("loggedOutDiv");
-            const userId = document.getElementById("userId");
-            const userFirstName = document.getElementById("userFirstName");
-            const userLastName = document.getElementById("userLastName");
-            const userEmail = document.getElementById("userEmail");
-            const userRole = document.getElementById("userRole");
-            const status = document.getElementById("status");
-            userInfoDiv.hidden = false;
-            loggedOutDiv.hidden = true;
-            userId.textContent = user._id;
-            userFirstName.textContent = user.firstName;
-            userLastName.textContent = user.lastName;
-            userEmail.textContent = user.email;
-            userRole.textContent = user.role;
-            status.textContent = "LOGGED IN";
-            status.style.color = "green";
+         if (message) {
+            alert(message);
          }
 
-         async function tryRefreshToken() {
-            try {
-               const response = await axios.get(
-                  `/api/v1/user/refresh-token`,
-                  {
-                     withCredentials: true,
-                  }
-               );
-               return true;
-            } catch (error) {
-               alert(error.response.data.error);
-            }
-         }
+         // Clear form fields
+         document.getElementById("si_email").value = '';
+         document.getElementById("si_password").value = '';
+      }
 
-         const LogOut = async () => {
-            try {
-               const response = await axios.post(
-                  `/api/v1/user/signout`,
-                  {},
-                  {
-                     withCredentials: true,
-                  }
-               );
-               handleLogout("Logout Successfull");
-            } catch (error) {
-               if (error.response.data.error === "Invalid or expired token.") {
-                  const success = await tryRefreshToken();
-                  if (success) {
-                     LogOut();
-                  } else {
-                     console.error("Logout failed:", error);
-                     alert("Logout failed:", error);
-                  }
-               }
-            }
-         };
+      function redirectToAdminPanel() {
+         window.location.href = `${API_BASE}/api/v1/user/admin`;
+      }
 
-         function handleLogout(message) {
-            document.getElementById("userInfoDiv").hidden = true;
-            document.getElementById("loggedOutDiv").hidden = false;
-            const status = document.getElementById("status");
-            status.textContent = "LOGGED OUT";
-            status.style.color = "red";
-            if (message) {
-               alert(message);
-            }
-         }
-
-         function redirectToAdminPanel() {
-            window.location.href = `/api/v1/user/admin`;
-         }
-
-         document.addEventListener("DOMContentLoaded", () => {
-            getUserData();
-         });
-      </script>
-   </body>
+      // Check auth status on page load
+      document.addEventListener("DOMContentLoaded", () => {
+         getUserData();
+      });
+   </script>
+</body>
 </html>

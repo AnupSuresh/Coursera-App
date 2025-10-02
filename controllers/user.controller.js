@@ -66,7 +66,7 @@ const signUp = async (req, res) => {
 };
 const signIn = async (req, res) => {
    try {
-      console.log("signin log")
+      console.log("signin log");
       const signInDataScehma = z.object({
          email: z.string().email(),
          password: z
@@ -145,17 +145,28 @@ const refreshToken = async (req, res) => {
    try {
       const redisClient = await connectRedis();
       const { refreshToken } = req.cookies;
+
       if (!refreshToken) {
          return res.status(401).json({ error: "Token not provided." });
       }
+
       const decoded = verifyRefreshToken(refreshToken);
+
       const storedRefreshToken = await redisClient.get(`refresh:${decoded.id}`);
       if (storedRefreshToken !== refreshToken) {
          return res.status(401).json({ error: "Token is Invalid" });
       }
+
+      await redisClient.del(`refresh:${decoded.id}`);
+
+      const user = await UserModel.findById(decoded.id);
+      if (!user) {
+         return res.status(401).json({ error: "User no longer exists." });
+      }
+
       const { accessToken, refreshToken: newRefreshToken } = generateTokens({
-         id: decoded.id,
-         role: decoded.role,
+         id: user._id,
+         role: user.role,
       });
 
       await redisClient.setex(
@@ -187,19 +198,26 @@ const refreshToken = async (req, res) => {
    }
 };
 const signOut = async (req, res) => {
-   res.clearCookie("accessToken", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
-      path: "/",
-   });
-   res.clearCookie("refreshToken", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
-      path: "/",
-   });
-   res.status(200).json({ message: "Logged out successfully." });
+   try {
+      const redisClient = await connectRedis();
+      if (req.user?.id) {
+         await redisClient.del(`refresh:${req.user.id}`);
+      }
+
+      res.clearCookie("accessToken", {
+         httpOnly: true,
+         secure: process.env.NODE_ENV === "production",
+         sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+         path: "/",
+      });
+      res.clearCookie("refreshToken", {
+         httpOnly: true,
+         secure: process.env.NODE_ENV === "production",
+         sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+         path: "/",
+      });
+      res.status(200).json({ message: "Logged out successfully." });
+   } catch (error) {}
 };
 
 module.exports = {
