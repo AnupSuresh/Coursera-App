@@ -1,7 +1,12 @@
-const { getSignedCookies } = require("@aws-sdk/cloudfront-signer");
-const fs = require("fs");
+const {
+   getSignedCookies,
+   getSignedUrl,
+} = require("@aws-sdk/cloudfront-signer");
 const path = require("path");
-const { date } = require("zod");
+
+const domain = process.env.CLOUDFRONT_DOMAIN;
+const privateKey = process.env.CLOUDFRONT_PRIVATE_KEY.replace(/\\n/g, "\n");
+const keyPairId = process.env.CLOUDFRONT_KEY_PAIR_ID;
 
 const generateCloudFrontPolicy = (userId, courseId, expiryDate) => {
    return {
@@ -40,10 +45,9 @@ const refreshCookies = (req, userId, courseId, expiryDate) => {
 
 const setCloudfrontCookies = (res, userId, courseId, expiryDate) => {
    // console.log(userId);
-   const privateKey = process.env.CLOUDFRONT_PRIVATE_KEY.replace(/\\n/g, "\n");
    const policy = generateCloudFrontPolicy(userId, courseId, expiryDate);
    const signedCookies = getSignedCookies({
-      keyPairId: process.env.CLOUDFRONT_KEY_PAIR_ID,
+      keyPairId: keyPairId,
       privateKey: privateKey,
       policy: JSON.stringify(policy),
    });
@@ -63,4 +67,16 @@ const setCloudfrontCookies = (res, userId, courseId, expiryDate) => {
    return signedCookies;
 };
 
-module.exports = { setCloudfrontCookies, refreshCookies };
+const getSignedUrlForFile = (key, expiresIn = 60) => {
+   const fileName = path.basename(key);
+   const signedUrl = getSignedUrl({
+      url: `${domain}/${key}`,
+      keyPairId: keyPairId,
+      privateKey: privateKey,
+      dateLessThan: new Date(Date.now() + expiresIn * 60 * 1000),
+      responseContentDisposition: `attachment; filename="${fileName}"`,
+   });
+   return signedUrl;
+};
+
+module.exports = { getSignedUrlForFile, setCloudfrontCookies, refreshCookies };

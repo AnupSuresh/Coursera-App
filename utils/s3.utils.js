@@ -226,7 +226,7 @@ const generateUniqueKey = (
          `Generated key is too long (${keyByteSize} bytes). Maximum key size is ${maxKeyBytes} bytes. Try shorter file/folder names.`
       );
    }
-   return keyCandidate;
+   return { keyCandidate, sanitizedFileName };
 };
 
 const clampExpiresIn = (expiry) => {
@@ -263,7 +263,7 @@ const getS3PresignedPutUrl = async (
          throw new Error(`Invalid access type: ${accessType}`);
       }
 
-      const key = generateUniqueKey(
+      const { keyCandidate: key, sanitizedFileName } = generateUniqueKey(
          accessType,
          userId,
          courseName,

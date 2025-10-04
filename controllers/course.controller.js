@@ -3,7 +3,11 @@ const CourseModel = require("../models/Course");
 const CourseContentModel = require("../models/CourseContent");
 const CourseEnrollmentModel = require("../models/CourseEnrollment");
 const { deleteS3Files } = require("../utils/s3.utils");
-const { setCloudfrontCookies, refreshCookies } = require("../utils/cdn.utils");
+const {
+   setCloudfrontCookies,
+   refreshCookies,
+   getSignedUrlForFile,
+} = require("../utils/cdn.utils");
 
 const purchaseCourse = async (req, res) => {
    try {
@@ -40,12 +44,12 @@ const purchaseCourse = async (req, res) => {
 
       await enrollment.save();
 
-      const setCookies = setCloudfrontCookies(
-         res,
-         course.creatorId,
-         courseId,
-         expiryDate
-      );
+      // const setCookies = setCloudfrontCookies(
+      //    res,
+      //    course.creatorId,
+      //    courseId,
+      //    expiryDate
+      // );
 
       // console.log("Cookies set:", setCookies);
 
@@ -327,8 +331,9 @@ const getCourseContent = async (req, res) => {
             { expiresAt: { $gt: new Date() } },
          ],
       });
+      const course = await CourseModel.findById(courseId);
 
-      if (!enrolled) {
+      if (!enrolled && course.creatorId !== userId) {
          return res.status(403).json({
             error: "Course access denied. Please purchase this course to access its content.",
          });
@@ -342,28 +347,43 @@ const getCourseContent = async (req, res) => {
          return res.status(404).json({ error: "Course content not found" });
       }
 
-      if (
-         refreshCookies(
-            req,
-            courseContent.courseId.creatorId,
-            courseId,
-            enrolled.expiresAt
-         )
-      ) {
-         const newExpiryDate = new Date();
-         newExpiryDate.setFullYear(newExpiryDate.getFullYear() + 1);
+      // if (
+      //    refreshCookies(
+      //       req,
+      //       courseContent.courseId.creatorId,
+      //       courseId,
+      //       enrolled.expiresAt
+      //    )
+      // ) {
+      //    const newExpiryDate = new Date();
+      //    newExpiryDate.setFullYear(newExpiryDate.getFullYear() + 1);
 
-         enrolled.expiresAt = newExpiryDate;
-         await enrolled.save();
+      //    enrolled.expiresAt = newExpiryDate;
+      //    await enrolled.save();
 
-         const cookies = setCloudfrontCookies(
-            res,
-            courseContent.courseId.creatorId,
-            courseId,
-            newExpiryDate
-         );
-         // console.log("Refreshed new Cookies:", cookies);
-      }
+      //    const cookies = setCloudfrontCookies(
+      //       res,
+      //       courseContent.courseId.creatorId,
+      //       courseId,
+      //       newExpiryDate
+      //    );
+      //    // console.log("Refreshed new Cookies:", cookies);
+      // }
+
+      courseContent.lessons.forEach((lesson) => {
+         if (lesson.video?.key) {
+            const signedVideouUrl = getSignedUrlForFile(lesson.video.key, 120);
+            lesson.video.url = signedVideouUrl;
+         }
+         if (Array.isArray(lesson.notes)) {
+            lesson.notes.forEach((note) => {
+               if (note.fileKey) {
+                  const signedNoteUrl = getSignedUrlForFile(note.fileKey, 140);
+                  note.fileUrl = signedNoteUrl;
+               }
+            });
+         }
+      });
 
       res.status(200).json({
          course: {
