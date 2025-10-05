@@ -105,8 +105,8 @@ const ownedCourses = async (req, res) => {
 
 const previewCourses = async (req, res) => {
    try {
-      const courses = await CourseModel.find();
-      res.status(200).json({ courses: courses, message: "Course Preview" });
+      const courses = await CourseModel.find().lean();
+      res.status(200).json({ courses, message: "Course Preview" });
    } catch (error) {
       return res.status(500).json({
          error: "Internal server error while previewing course.",
@@ -333,7 +333,7 @@ const getCourseContent = async (req, res) => {
       });
       const course = await CourseModel.findById(courseId);
 
-      if (!enrolled && course.creatorId !== userId) {
+      if (!enrolled && course.creatorId.toString() !== userId.toString()) {
          return res.status(403).json({
             error: "Course access denied. Please purchase this course to access its content.",
          });
@@ -395,10 +395,10 @@ const getCourseContent = async (req, res) => {
          lessons: courseContent.lessons,
          totalDuration: courseContent.totalDuration,
          enrollment: {
-            enrolledAt: enrolled.enrolledAt,
-            expiresAt: enrolled.expiresAt,
-            progress: enrolled.progress,
-            status: enrolled.status,
+            enrolledAt: enrolled?.enrolledAt,
+            expiresAt: enrolled?.expiresAt,
+            progress: enrolled?.progress,
+            status: enrolled?.status,
          },
       });
    } catch (error) {
