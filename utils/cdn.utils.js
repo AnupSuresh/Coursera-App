@@ -2,7 +2,6 @@ const {
    getSignedCookies,
    getSignedUrl,
 } = require("@aws-sdk/cloudfront-signer");
-const path = require("path");
 
 const domain = process.env.CLOUDFRONT_DOMAIN;
 const privateKey = process.env.CLOUDFRONT_PRIVATE_KEY.replace(/\\n/g, "\n");
@@ -67,14 +66,12 @@ const setCloudfrontCookies = (res, userId, courseId, expiryDate) => {
    return signedCookies;
 };
 
-const getSignedUrlForFile = (key, expiresIn = 60) => {
-   const fileName = path.basename(key);
+const getSignedUrlForFile = (url, expiresIn = 60) => {
    const signedUrl = getSignedUrl({
-      url: `${domain}/${key}`,
+      url: url,
       keyPairId: keyPairId,
       privateKey: privateKey,
       dateLessThan: new Date(Date.now() + expiresIn * 60 * 1000),
-      responseContentDisposition: `attachment; filename="${fileName}"`,
    });
    return signedUrl;
 };

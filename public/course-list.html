@@ -94,10 +94,8 @@
                currentUser = response.data.user;
 
                // Load owned courses
-               const ownedResponse = await axiosInstance.get(
-                  "/course/owned"
-               );
-               ownedCourseIds = ownedResponse.data.courses.map((c) => c._id);
+               const ownedResponse = await axiosInstance.get("/course/owned");
+               ownedCourseIds = ownedResponse.data.courses.map((c) => c.id);
 
                document.getElementById("user-status").innerHTML = `
                 <strong>Welcome, ${currentUser.firstName} ${currentUser.lastName}!</strong>
@@ -115,14 +113,12 @@
 
          async function loadCourses() {
             try {
-               const response = await axiosInstance.get(
-                  "/course/preview"
-               );
+               const response = await axiosInstance.get("/course/preview");
                const courses = response.data.courses;
 
                const container = document.getElementById("courses-container");
 
-               if (courses.length === 0) {
+               if (!courses || courses.length === 0) {
                   container.innerHTML = "<p>No courses available.</p>";
                   return;
                }
@@ -135,42 +131,54 @@
                         currentUser && currentUser.role === "admin";
 
                      return `
-                    <div class="course-card">
-                        <img src="${course["thumbnail-image"]?.url || "https://via.placeholder.com/300x200?text=No+Image"}" 
-                             alt="${course.title}">
-                        <h3>${course.title}</h3>
-                        <p>${course.description}</p>
-                        <div class="price">${course.price}</div>
-                        
-                        <div style="margin-top: 15px;">
-                            ${
-                               isOwned
-                                  ? `
-                                <a href="course-viewer.html?courseId=${course._id}" class="button btn-success">
-                                    View Content
-                                </a>
-                            `
-                                  : `
-                                <button onclick="purchaseCourse('${course._id}')" class="button btn-primary">
-                                    Purchase Course
-                                </button>
-                            `
-                            }
-                            
-                            ${
-                               canManage
-                                  ? `
-                                <a href="/api/v1/user/admin" class="button btn-info">
-                                    Manage
-                                </a>
-                            `
-                                  : ""
-                            }
-                        </div>
-                        
-                        ${isOwned ? '<div style="color: #28a745; margin-top: 10px; font-weight: bold;">✓ Owned</div>' : ""}
-                    </div>
-                `;
+               <div class="course-card">
+                  <img src="${
+                     course["thumbnail-image"]?.url ||
+                     "https://via.placeholder.com/300x200?text=No+Image"
+                  }" alt="${course.title}">
+
+                  <h3>${course.title}</h3>
+                  <p>${course.description}</p>
+                  <div class="price">₹${course.price}</div>
+
+                  <div style="margin-top: 15px;">
+                     <!-- View Content Button -->
+                     ${
+                        isOwned
+                           ? `
+                              <a href="course-viewer.html?courseId=${course._id}" 
+                                 class="button btn-success">
+                                 View Content
+                              </a>
+                           `
+                           : `
+                              <button onclick="purchaseCourse('${course._id}')" 
+                                 class="button btn-primary">
+                                 Purchase Course
+                              </button>
+                           `
+                     }
+
+                     <!-- Manage Button (Admins only) -->
+                     ${
+                        canManage
+                           ? `
+                              <a href="/api/v1/user/admin" class="button btn-info">
+                                 Manage
+                              </a>
+                           `
+                           : ""
+                     }
+                  </div>
+
+                  <!-- Owned Badge -->
+                  ${
+                     isOwned
+                        ? '<div style="color: #28a745; margin-top: 10px; font-weight: bold;">✓ Owned</div>'
+                        : ""
+                  }
+               </div>
+            `;
                   })
                   .join("");
             } catch (error) {
@@ -207,9 +215,7 @@
 
          async function logout() {
             try {
-               await axiosInstance.post(
-                  "/user/signOut"
-               );
+               await axiosInstance.post("/user/signOut");
                window.location.reload();
             } catch (error) {
                console.error("Logout failed:", error);

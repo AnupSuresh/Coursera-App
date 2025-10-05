@@ -233,6 +233,10 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
          }
+         .btn-ternary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+         }
 
          .btn-secondary {
             background: #6c757d;
@@ -240,7 +244,8 @@
          }
 
          .btn-primary:hover,
-         .btn-secondary:hover {
+         .btn-secondary:hover,
+         .btn-ternary:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
          }
@@ -386,6 +391,9 @@
             <div class="action-buttons">
                <button class="btn-primary" onclick="redirectToAdminPanel()">
                   Admin Panel
+               </button>
+               <button class="btn-ternary" onclick="redirectToCourseList()">
+                  View Courses
                </button>
                <button class="btn-secondary" onclick="LogOut()">Log Out</button>
             </div>
@@ -598,6 +606,9 @@
 
          function redirectToAdminPanel() {
             window.location.href = "/api/v1/user/admin";
+         }
+         function redirectToCourseList() {
+            window.location.href = "/course-list.html";
          }
 
          // Check auth status on page load

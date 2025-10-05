@@ -371,14 +371,14 @@ const getCourseContent = async (req, res) => {
       // }
 
       courseContent.lessons.forEach((lesson) => {
-         if (lesson.video?.key) {
-            const signedVideouUrl = getSignedUrlForFile(lesson.video.key, 120);
+         if (lesson.video?.url) {
+            const signedVideouUrl = getSignedUrlForFile(lesson.video.url, 120);
             lesson.video.url = signedVideouUrl;
          }
          if (Array.isArray(lesson.notes)) {
             lesson.notes.forEach((note) => {
-               if (note.fileKey) {
-                  const signedNoteUrl = getSignedUrlForFile(note.fileKey, 140);
+               if (note.fileUrl) {
+                  const signedNoteUrl = getSignedUrlForFile(note.fileUrl, 140);
                   note.fileUrl = signedNoteUrl;
                }
             });
