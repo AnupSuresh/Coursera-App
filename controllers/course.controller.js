@@ -62,8 +62,7 @@ const purchaseCourse = async (req, res) => {
       console.error("Purchase error:", error);
       res.status(500).json({
          error: "Purchase failed",
-         details:
-            process.env.NODE_ENV === "development" ? error.message : undefined,
+         details: error.message,
       });
    }
 };
@@ -405,8 +404,7 @@ const getCourseContent = async (req, res) => {
       console.error("Get course content error:", error);
       res.status(500).json({
          error: "Failed to load course content",
-         details:
-            process.env.NODE_ENV === "development" ? error.message : undefined,
+         details: error.message,
       });
    }
 };

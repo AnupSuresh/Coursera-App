@@ -86,8 +86,7 @@ uploadRouter.get("/upload/thumbnail/pre-signed-url", auth, async (req, res) => {
       }
       res.status(500).json({
          error: "Internal server error",
-         details:
-            process.env.NODE_ENV === "development" ? error.message : undefined,
+         details: error.message,
       });
    }
 });
@@ -100,8 +99,7 @@ uploadRouter.delete("/delete", auth, async (req, res) => {
    } catch (error) {
       res.status(500).json({
          error: "Internal server error",
-         details:
-            process.env.NODE_ENV === "development" ? error.message : undefined,
+         details: error.message,
       });
    }
 });
@@ -180,10 +178,7 @@ uploadRouter.get(
          }
          res.status(500).json({
             error: "Internal server error",
-            details:
-               process.env.NODE_ENV === "development"
-                  ? error.message
-                  : undefined,
+            details: error.message,
          });
       }
    }
@@ -262,10 +257,7 @@ uploadRouter.get(
          }
          res.status(500).json({
             error: "Internal server error",
-            details:
-               process.env.NODE_ENV === "development"
-                  ? error.message
-                  : undefined,
+            details: error.message,
          });
       }
    }
