@@ -9,8 +9,12 @@ const {
    previewCourses,
    purchaseCourse,
    ownedCourses,
-   addCourseContent,
    getCourseContent,
+   addCourseContent,
+   updateCourseContent,
+   deleteCourseContent,
+   deleteCourseLesson,
+   deleteLessonNotes,
 } = require("../controllers/course.controller");
 
 courseRouter.get("/", (req, res) => {
@@ -28,7 +32,26 @@ courseRouter.get("/preview", previewCourses);
 // Admin routes
 courseRouter.post("/create", auth, isAdmin, createCourse);
 courseRouter.post("/:courseId/lesson", auth, isAdmin, addCourseContent);
+courseRouter.put(
+   "/:contentId/:lessonId/update",
+   auth,
+   isAdmin,
+   updateCourseContent
+);
 courseRouter.put("/update/:courseId", auth, isAdmin, updateCourse);
 courseRouter.delete("/delete/:courseId", auth, isAdmin, deleteCourse);
+courseRouter.delete(
+   "/delete/content/:contentId",
+   auth,
+   isAdmin,
+   deleteCourseContent
+);
+courseRouter.delete(
+   "/delete/lesson/:lessonId",
+   auth,
+   isAdmin,
+   deleteCourseLesson
+);
+courseRouter.delete("/delete/notes/:noteId", auth, isAdmin, deleteLessonNotes);
 
 module.exports = courseRouter;

@@ -164,7 +164,7 @@ const updateCourse = async (req, res) => {
       const courseBody = z.object({
          title: z.string().min(2).max(30).optional(),
          description: z.string().min(2).max(500).optional(),
-         price: z.number().min(1).max(99999).optional(),
+         price: z.coerce.number().min(1).max(99999).optional(),
          key: z.string().min(2).max(200).optional(),
       });
 
@@ -180,9 +180,17 @@ const updateCourse = async (req, res) => {
 
       const existingCourse = await CourseModel.findById(courseId);
       if (!existingCourse) throw new Error("Course not found");
+
+      if (!existingCourse.creatorId.equals(req.user._id)) {
+         return res.status(403).json({
+            error: "This course was not created by you and you can only update own courses.",
+         });
+      }
+
       if (key && existingCourse["thumbnail-image"]?.key) {
          await deleteS3Files(existingCourse["thumbnail-image"].key);
       }
+
       const cdnDomain = process.env.CLOUDFRONT_DOMAIN;
       const url = new URL(key, cdnDomain).toString();
 
@@ -195,11 +203,13 @@ const updateCourse = async (req, res) => {
             key: key,
          },
       });
+
       const updatedCourseData = await CourseModel.findById(courseId);
 
       if (!updatedCourseData) {
          throw new Error("Course not found");
       }
+
       res.status(200).json({
          updatedCourseData,
          message: "Course updated successfully!",
@@ -229,93 +239,6 @@ const deleteCourse = async (req, res) => {
    }
 };
 
-const addCourseContent = async (req, res) => {
-   try {
-      const { courseId } = req.params;
-      const contentBody = z.object({
-         title: z.string().min(2).max(100),
-         videoKey: z.string().min(5),
-         duration: z.number().min(1).max(10000),
-         notes: z.array(
-            z.object({
-               fileName: z.string(),
-               fileKey: z.string(),
-               fileType: z.string(),
-            })
-         ),
-      });
-
-      const validationResult = await contentBody.safeParseAsync(req.body);
-
-      if (!validationResult.success) {
-         return res
-            .status(422)
-            .json({ error: z.treeifyError(validationResult.error) });
-      }
-
-      const { title, videoKey, duration, notes } = validationResult.data;
-
-      const course = await CourseModel.findById(courseId);
-      if (!course) {
-         return res.status(404).json({
-            error: "Course not found!",
-         });
-      }
-
-      if (course.creatorId.toString() !== req.user._id.toString()) {
-         return res.status(403).json({
-            error: "This course was not created by you and you can only add content to your own courses.",
-         });
-      }
-
-      const cdnDomain = process.env.CLOUDFRONT_DOMAIN;
-      const videoUrl = new URL(videoKey, cdnDomain).toString();
-
-      const processedNotes = notes.map((note) => ({
-         fileName: note.fileName,
-         fileUrl: new URL(note.fileKey, cdnDomain).toString(),
-         fileKey: note.fileKey,
-         fileType: note.fileType,
-      }));
-
-      let courseContent = await CourseContentModel.findOne({ courseId });
-      if (!courseContent) {
-         courseContent = new CourseContentModel({
-            courseId,
-            lessons: [],
-            totalDuration: 0,
-         });
-      }
-
-      courseContent.lessons.push({
-         title,
-         video: {
-            url: videoUrl,
-            key: videoKey,
-         },
-         notes: processedNotes,
-         duration: duration,
-      });
-
-      courseContent.totalDuration = courseContent.lessons.reduce(
-         (sum, lesson) => sum + lesson.duration,
-         0
-      );
-
-      await courseContent.save();
-
-      res.status(200).json({
-         message: "Course content added successfully.",
-         totalLessons: courseContent.lessons.length,
-         totalDuration: courseContent.totalDuration,
-      });
-   } catch (error) {
-      return res.status(500).json({
-         error: "Internal server error while adding course content.",
-         details: error.message,
-      });
-   }
-};
 const getCourseContent = async (req, res) => {
    try {
       const userId = req.user._id;
@@ -408,6 +331,302 @@ const getCourseContent = async (req, res) => {
       });
    }
 };
+const addCourseContent = async (req, res) => {
+   try {
+      const { courseId } = req.params;
+      const contentBody = z.object({
+         title: z.string().min(2).max(100),
+         videoKey: z.string().min(5),
+         duration: z.number().min(1).max(10000),
+         notes: z.array(
+            z.object({
+               fileName: z.string(),
+               fileKey: z.string(),
+               fileType: z.string(),
+            })
+         ),
+      });
+
+      const validationResult = await contentBody.safeParseAsync(req.body);
+
+      if (!validationResult.success) {
+         return res
+            .status(422)
+            .json({ error: z.treeifyError(validationResult.error) });
+      }
+
+      const { title, videoKey, duration, notes } = validationResult.data;
+
+      const course = await CourseModel.findById(courseId);
+      if (!course) {
+         return res.status(404).json({
+            error: "Course not found!",
+         });
+      }
+
+      if (course.creatorId.toString() !== req.user._id.toString()) {
+         return res.status(403).json({
+            error: "This course was not created by you and you can only add content to your own courses.",
+         });
+      }
+
+      const cdnDomain = process.env.CLOUDFRONT_DOMAIN;
+      const videoUrl = new URL(videoKey, cdnDomain).toString();
+
+      const processedNotes = notes.map((note) => ({
+         fileName: note.fileName,
+         fileUrl: new URL(note.fileKey, cdnDomain).toString(),
+         fileKey: note.fileKey,
+         fileType: note.fileType,
+      }));
+
+      let courseContent = await CourseContentModel.findOne({ courseId });
+      if (!courseContent) {
+         courseContent = new CourseContentModel({
+            courseId,
+            lessons: [],
+            totalDuration: 0,
+         });
+      }
+
+      courseContent.lessons.push({
+         title,
+         video: {
+            url: videoUrl,
+            key: videoKey,
+         },
+         notes: processedNotes,
+         duration: duration,
+      });
+
+      courseContent.totalDuration = courseContent.lessons.reduce(
+         (sum, lesson) => sum + (lesson.duration || 0),
+         0
+      );
+
+      await courseContent.save();
+
+      res.status(200).json({
+         message: "Course content added successfully.",
+         totalLessons: courseContent.lessons.length,
+         totalDuration: courseContent.totalDuration,
+      });
+   } catch (error) {
+      return res.status(500).json({
+         error: "Internal server error while adding course content.",
+         details: error.message,
+      });
+   }
+};
+const updateCourseContent = async (req, res) => {
+   try {
+      const { contentId, lessonId } = req.params;
+
+      const contentBody = z.object({
+         title: z.string().min(2).max(100).optional(),
+         videoKey: z.string().min(5).optional(),
+         duration: z.number().min(1).max(10000).optional(),
+         notes: z
+            .array(
+               z.object({
+                  fileName: z.string(),
+                  fileKey: z.string(),
+                  fileType: z.string(),
+               })
+            )
+            .optional(),
+      });
+
+      const validationResult = await contentBody.safeParseAsync(req.body);
+      if (!validationResult.success) {
+         return res
+            .status(422)
+            .json({ error: z.treeifyError(validationResult.error) });
+      }
+
+      const { title, videoKey, duration, notes } = validationResult.data;
+
+      const courseContent = await CourseContentModel.findById(
+         contentId
+      ).populate("courseId", "creatorId");
+
+      if (!courseContent) {
+         return res.status(404).json({
+            error: "Course content doesn't exist for this course, please create it first!",
+         });
+      }
+
+      if (!courseContent.courseId.creatorId.equals(req.user._id)) {
+         return res.status(403).json({
+            error: "This course was not created by you and you can only add or update content of your own courses.",
+         });
+      }
+
+      const cdnDomain = process.env.CLOUDFRONT_DOMAIN;
+
+      const lesson = courseContent.lessons.id(lessonId);
+      if (!lesson) {
+         return res
+            .status(404)
+            .json({ error: "Lesson not found in this content." });
+      }
+
+      if (videoKey && lesson.video?.key) {
+         await deleteS3Files(lesson.video.key);
+      }
+
+      if (title) lesson.title = title;
+
+      if (videoKey) {
+         const videoUrl = new URL(videoKey, cdnDomain).toString();
+         lesson.video.key = videoKey;
+         lesson.video.url = videoUrl;
+      }
+
+      if (notes && notes.length) {
+         const processedNotes = notes.map((note) => ({
+            fileName: note.fileName,
+            fileUrl: new URL(note.fileKey, cdnDomain).toString(),
+            fileKey: note.fileKey,
+            fileType: note.fileType,
+         }));
+         lesson.notes = processedNotes;
+      }
+
+      if (duration) {
+         lesson.duration = duration;
+      }
+
+      courseContent.totalDuration = courseContent.lessons.reduce(
+         (sum, lesson) => sum + (lesson.duration || 0),
+         0
+      );
+
+      await courseContent.save();
+      return res.status(200).json({
+         message: "Lesson updated successfully!",
+         updatedLesson: lesson,
+         totalDuration: courseContent.totalDuration,
+      });
+   } catch (error) {
+      console.error("Error updating course content:", error);
+      return res.status(500).json({
+         error: "Internal server error while updating course content.",
+         details: error.message,
+      });
+   }
+};
+const deleteCourseContent = async (req, res) => {
+   try {
+      const { contentId } = req.params;
+      const deletedCourseContent =
+         await CourseContentModel.findByIdAndDelete(contentId);
+
+      if (!deletedCourseContent) {
+         throw new Error("Course content not found");
+      }
+      const deletedFileKeys = deletedCourseContent.lessons.flatMap((lesson) => {
+         const videoKey = lesson.video?.key ? [lesson.video.key] : [];
+         const noteKeys = lesson.notes.map((n) => n.fileKey).filter(Boolean);
+         return [...videoKey, ...noteKeys];
+      });
+      if (deletedFileKeys.length > 0) {
+         await deleteS3Files(deletedFileKeys);
+      }
+
+      res.status(200).json({ message: "Course content deleted successfully!" });
+   } catch (error) {
+      return res.status(500).json({
+         error: "Internal server error while deleting course content.",
+         details: error.message,
+      });
+   }
+};
+const deleteCourseLesson = async (req, res) => {
+   try {
+      const { lessonId } = req.params;
+      const courseContent = await CourseContentModel.findOne({
+         "lessons._id": lessonId,
+      });
+
+      if (!courseContent) {
+         throw new Error("Course content not found");
+      }
+
+      let lesson = courseContent.lessons.id(lessonId);
+      if (!lesson) {
+         throw new Error("Lesson not found");
+      }
+
+      const lessonDuration = lesson.duration;
+
+      const deletedFileKeys = [
+         ...(lesson.video?.key ? [lesson.video.key] : []),
+         ...lesson.notes.map((n) => n.fileKey).filter(Boolean),
+      ];
+
+      await CourseContentModel.updateOne(
+         { "lessons._id": lessonId },
+         {
+            $pull: { lessons: { _id: lessonId } },
+            $inc: { totalDuration: -lessonDuration },
+         }
+      );
+
+      await deleteS3Files(deletedFileKeys);
+
+      res.status(200).json({ message: "Lesson deleted successfully!" });
+   } catch (error) {
+      return res.status(500).json({
+         error: "Internal server error while deleting lesson.",
+         details: error.message,
+      });
+   }
+};
+const deleteLessonNotes = async (req, res) => {
+   try {
+      const { noteId } = req.params;
+      const courseContent = await CourseContentModel.findOne({
+         "lessons.notes._id": noteId,
+      });
+
+      if (!courseContent) {
+         throw new Error("Course content not found");
+      }
+
+      let targetNote = null;
+      for (const lesson of courseContent.lessons) {
+         targetNote = lesson.notes.id(noteId); // .id() works on lesson.notes
+         if (targetNote) break;
+      }
+
+      if (!targetNote) {
+         throw new Error("Note not found");
+      }
+
+      const deletedFileKeys = targetNote.fileKey ? [targetNote.fileKey] : [];
+
+      await CourseContentModel.updateOne(
+         { "lessons.notes._id": noteId },
+         {
+            $pull: {
+               "lessons.$.notes": { _id: noteId },
+            },
+         }
+      );
+
+      if (deletedFileKeys.length > 0) {
+         await deleteS3Files(deletedFileKeys);
+      }
+
+      res.status(200).json({ message: "Note deleted successfully!" });
+   } catch (error) {
+      return res.status(500).json({
+         error: "Internal server error while deleting note.",
+         details: error.message,
+      });
+   }
+};
 
 module.exports = {
    previewCourses,
@@ -416,6 +635,10 @@ module.exports = {
    deleteCourse,
    purchaseCourse,
    ownedCourses,
-   addCourseContent,
    getCourseContent,
+   addCourseContent,
+   updateCourseContent,
+   deleteCourseContent,
+   deleteCourseLesson,
+   deleteLessonNotes
 };
