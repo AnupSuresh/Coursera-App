@@ -31,6 +31,8 @@ courseRouter.get("/preview", previewCourses);
 
 // Admin routes
 courseRouter.post("/create", auth, isAdmin, createCourse);
+courseRouter.put("/update/:courseId", auth, isAdmin, updateCourse);
+courseRouter.delete("/delete/:courseId", auth, isAdmin, deleteCourse);
 courseRouter.post("/:courseId/lesson", auth, isAdmin, addCourseContent);
 courseRouter.put(
    "/:contentId/:lessonId/update",
@@ -38,8 +40,6 @@ courseRouter.put(
    isAdmin,
    updateCourseContent
 );
-courseRouter.put("/update/:courseId", auth, isAdmin, updateCourse);
-courseRouter.delete("/delete/:courseId", auth, isAdmin, deleteCourse);
 courseRouter.delete(
    "/delete/content/:contentId",
    auth,

@@ -306,6 +306,7 @@ const getCourseContent = async (req, res) => {
             });
          }
       });
+      console.log(courseContent._id);
 
       res.status(200).json({
          course: {
@@ -314,8 +315,11 @@ const getCourseContent = async (req, res) => {
             description: courseContent.courseId.description,
             "thumbnail-image": courseContent.courseId["thumbnail-image"],
          },
-         lessons: courseContent.lessons,
-         totalDuration: courseContent.totalDuration,
+         courseContent: {
+            id: courseContent._id,
+            totalDuration: courseContent.totalDuration,
+            lessons: courseContent.lessons,
+         },
          enrollment: {
             enrolledAt: enrolled?.enrolledAt,
             expiresAt: enrolled?.expiresAt,
@@ -445,6 +449,7 @@ const updateCourseContent = async (req, res) => {
       }
 
       const { title, videoKey, duration, notes } = validationResult.data;
+      console.log(contentId);
 
       const courseContent = await CourseContentModel.findById(
          contentId
@@ -640,5 +645,5 @@ module.exports = {
    updateCourseContent,
    deleteCourseContent,
    deleteCourseLesson,
-   deleteLessonNotes
+   deleteLessonNotes,
 };
