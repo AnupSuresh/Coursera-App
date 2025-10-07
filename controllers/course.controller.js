@@ -187,24 +187,38 @@ const updateCourse = async (req, res) => {
          });
       }
 
+      let updateData = {};
+
       if (key && existingCourse["thumbnail-image"]?.key) {
-         await deleteS3Files(existingCourse["thumbnail-image"].key);
+         const deleteResult = await deleteS3Files(
+            existingCourse["thumbnail-image"].key
+         );
+         if (!deleteResult.success) {
+            throw new Error("Failed to delete old thumbnail from S3.");
+         }
+         const cdnDomain = process.env.CLOUDFRONT_DOMAIN;
+         const url = new URL(key, cdnDomain).toString();
+         updateData["thumbnail-image"] = {
+            url,
+            key,
+         };
       }
 
-      const cdnDomain = process.env.CLOUDFRONT_DOMAIN;
-      const url = new URL(key, cdnDomain).toString();
+      if (title) updateData.title = title;
+      if (description) updateData.description = description;
+      if (price) updateData.price = price;
 
-      await CourseModel.findByIdAndUpdate(courseId, {
-         title,
-         description,
-         price,
-         "thumbnail-image": {
-            url: url,
-            key: key,
-         },
-      });
+      if (Object.keys(updateData).length === 0) {
+         return res
+            .status(400)
+            .json({ error: "No valid fields provided for update." });
+      }
 
-      const updatedCourseData = await CourseModel.findById(courseId);
+      const updatedCourseData = await CourseModel.findByIdAndUpdate(
+         courseId,
+         updateData,
+         { new: true }
+      );
 
       if (!updatedCourseData) {
          throw new Error("Course not found");
