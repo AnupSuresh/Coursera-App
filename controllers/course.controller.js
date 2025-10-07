@@ -306,7 +306,7 @@ const getCourseContent = async (req, res) => {
             });
          }
       });
-      console.log(courseContent._id);
+      // console.log(courseContent._id);
 
       res.status(200).json({
          course: {
@@ -449,7 +449,7 @@ const updateCourseContent = async (req, res) => {
       }
 
       const { title, videoKey, duration, notes } = validationResult.data;
-      console.log(contentId);
+      // console.log(contentId);
 
       const courseContent = await CourseContentModel.findById(
          contentId
@@ -495,7 +495,7 @@ const updateCourseContent = async (req, res) => {
             fileKey: note.fileKey,
             fileType: note.fileType,
          }));
-         lesson.notes = processedNotes;
+         lesson.notes.push(...processedNotes);
       }
 
       if (duration) {

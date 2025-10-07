@@ -47,7 +47,6 @@
             cursor: pointer;
             transition: 0.2s;
          }
-
          .form-container button:hover {
             background-color: #0056b3;
          }
@@ -222,62 +221,19 @@
             cursor: pointer;
             margin-bottom: 20px;
          }
-
          .back-btn:hover {
             background-color: #5a6268;
          }
 
-         /* Modal styles */
-         .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.4);
+         .alert {
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 15px;
          }
-
-         .modal.active {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-         }
-
-         .modal-content {
-            background-color: #fff;
-            padding: 30px;
-            border-radius: 10px;
-            max-width: 500px;
-            width: 90%;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-         }
-
-         .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-         }
-
-         .modal-header h3 {
-            margin: 0;
-         }
-
-         .close-modal {
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: #666;
-            padding: 0;
-            width: auto;
-            margin: 0;
-         }
-
-         .close-modal:hover {
-            color: #000;
+         .alert-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
          }
       </style>
    </head>
@@ -289,8 +245,15 @@
          <h3 id="form-title">Create Course</h3>
          <input type="text" id="title" placeholder="Course Title" />
          <input type="text" id="description" placeholder="Course Description" />
-         <input type="number" id="price" placeholder="Course Price" />
-         <input type="file" id="thumbnail-image" />
+         <input
+            type="number"
+            id="price"
+            placeholder="Course Price"
+            min="0"
+            step="0.01"
+         />
+         <input type="file" id="thumbnail-image" accept="image/*" />
+         <small style="color: #666">Accepted: JPG, PNG, GIF. Max 5MB</small>
          <button id="submit-course">Create Course</button>
          <button id="cancel-update" class="btn-secondary" style="display: none">
             Cancel Update
@@ -308,6 +271,9 @@
             <h4 id="lesson-form-title">Add New Lesson</h4>
             <input type="text" id="lesson-title" placeholder="Lesson Title" />
             <input type="file" id="lesson-video" accept="video/*" />
+            <small style="color: #666"
+               >Accepted: MP4, WebM, MOV. Max 500MB</small
+            >
             <p
                id="current-video-info"
                style="font-size: 12px; color: #666; display: none"
@@ -318,6 +284,7 @@
                type="number"
                id="lesson-duration"
                placeholder="Duration (minutes)"
+               min="1"
             />
 
             <h5>Add Notes/Files</h5>
@@ -332,6 +299,7 @@
                   Add Files
                </button>
             </div>
+            <small style="color: #666">Max 10MB per file</small>
 
             <div id="selected-files"></div>
             <button id="add-lesson">Add Lesson</button>
@@ -353,23 +321,40 @@
       <!-- Course List -->
       <div class="course-list" id="course-list"></div>
 
-      <!-- Edit Lesson Modal - REMOVED -->
-      <!-- We're now using the form above for editing -->
-
       <script>
          let editingCourseId = null;
          let currentCourseId = null;
          let currentContentId = null;
          let selectedFiles = [];
          let editingLessonId = null;
+         let editingLessonNotes = [];
 
-         // Load all courses
+         const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+         const MAX_VIDEO_SIZE = 500 * 1024 * 1024; // 500MB
+         const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+         function validateFileSize(file, maxSize, type) {
+            if (file.size > maxSize) {
+               alert(
+                  `${type} file is too large. Maximum size: ${maxSize / (1024 * 1024)}MB`
+               );
+               return false;
+            }
+            return true;
+         }
+
          async function loadCourses() {
             try {
                const res = await axiosInstance.get("/course/preview");
                const courses = res.data.courses;
                const courseList = document.getElementById("course-list");
                courseList.innerHTML = "";
+
+               if (courses.length === 0) {
+                  courseList.innerHTML =
+                     '<div class="alert alert-info">No courses created yet. Create your first course above!</div>';
+                  return;
+               }
 
                courses.forEach((course) => {
                   const div = document.createElement("div");
@@ -390,7 +375,6 @@
                   courseList.appendChild(div);
                });
 
-               // Attach event listeners
                document.querySelectorAll(".btn-warning").forEach((btn) => {
                   btn.addEventListener("click", (e) => {
                      const courseId = e.target.dataset.id;
@@ -418,6 +402,8 @@
                   "Failed to load courses:",
                   error.response?.data || error.message
                );
+               document.getElementById("course-list").innerHTML =
+                  '<div class="alert alert-info">Error loading courses. Please refresh the page.</div>';
             }
          }
 
@@ -441,6 +427,7 @@
                .classList.add("hidden");
             currentCourseId = null;
             currentContentId = null;
+            resetLessonForm();
          }
 
          async function loadCourseContent(courseId) {
@@ -448,50 +435,98 @@
                const res = await axiosInstance.get(
                   `/course/${courseId}/content`
                );
-               const content = res.data;
-               currentContentId = content._id; // Store content ID for updates
+               const data = res.data;
+
+               // FIX: Properly set currentContentId
+               currentContentId =
+                  data.courseContent?.id || data.courseContent?._id;
+               const lessons = data.courseContent?.lessons || [];
                const container = document.getElementById("lessons-container");
 
-               if (content.lessons && content.lessons.length > 0) {
-                  container.innerHTML = content.lessons
-                     .map(
-                        (lesson, index) => `
-                  <div class="lesson-item" data-lesson-id="${lesson._id}">
-                     <div class="lesson-header">
-                        <h4>Lesson ${index + 1}: ${lesson.title}</h4>
-                        <div class="lesson-actions">
-                           <button class="btn-info" onclick="editLesson('${lesson._id}', '${lesson.title}', ${lesson.duration})">Edit</button>
-                           <button class="btn-danger" onclick="deleteLesson('${lesson._id}')">Delete</button>
-                        </div>
-                     </div>
-                     <p><strong>Duration:</strong> ${lesson.duration} minutes</p>
-                     <p><strong>Video:</strong> ${lesson.video.key}</p>
-                     <p><strong>Notes:</strong> ${lesson.notes.length} files</p>
-                     <div class="notes-list">
-                        ${lesson.notes
-                           .map(
-                              (note) => `
-                           <div class="note-item">
-                              <span>📄 ${note.fileName}</span>
-                              <div class="note-actions">
-                                 <button class="btn-danger" onclick="deleteNote('${note._id}')">Delete</button>
-                              </div>
+               if (lessons.length > 0) {
+                  container.innerHTML = "";
+                  lessons.forEach((lesson, index) => {
+                     const lessonDiv = document.createElement("div");
+                     lessonDiv.className = "lesson-item";
+
+                     const lessonId = lesson._id || lesson.id;
+                     const videoKey = lesson.video?.key || "N/A";
+
+                     lessonDiv.innerHTML = `
+                        <div class="lesson-header">
+                           <h4>Lesson ${index + 1}: ${lesson.title}</h4>
+                           <div class="lesson-actions">
+                              <button class="btn-warning" data-lesson-id="${lessonId}" data-lesson-index="${index}">Edit</button>
+                              <button class="btn-danger" data-lesson-id="${lessonId}">Delete</button>
                            </div>
-                        `
-                           )
-                           .join("")}
-                     </div>
-                  </div>
-               `
-                     )
-                     .join("");
+                        </div>
+                        <p><strong>Duration:</strong> ${lesson.duration} minutes</p>
+                        <p><strong>Video:</strong> ${videoKey}</p>
+                        <div class="notes-list">
+                           <p><strong>Notes:</strong> ${lesson.notes?.length || 0} files</p>
+                           ${(lesson.notes || [])
+                              .map(
+                                 (note) => `
+                              <div class="note-item">
+                                 <span>${note.fileName}</span>
+                                 <div class="note-actions">
+                                    <button class="btn-danger" data-note-id="${note._id || note.id}">Delete</button>
+                                 </div>
+                              </div>
+                           `
+                              )
+                              .join("")}
+                        </div>
+                     `;
+
+                     container.appendChild(lessonDiv);
+
+                     // Attach event listeners
+                     lessonDiv
+                        .querySelector(".btn-warning")
+                        .addEventListener("click", () => {
+                           editLesson(
+                              lessonId,
+                              lesson.title,
+                              lesson.duration,
+                              lesson.notes || []
+                           );
+                        });
+
+                     lessonDiv
+                        .querySelector(".lesson-actions .btn-danger")
+                        .addEventListener("click", () => {
+                           deleteLesson(lessonId);
+                        });
+
+                     lessonDiv
+                        .querySelectorAll(".note-actions .btn-danger")
+                        .forEach((noteBtn, noteIndex) => {
+                           noteBtn.addEventListener("click", () => {
+                              const noteId =
+                                 lesson.notes[noteIndex]._id ||
+                                 lesson.notes[noteIndex].id;
+                              deleteNote(noteId);
+                           });
+                        });
+                  });
                } else {
-                  container.innerHTML = "<p>No lessons added yet.</p>";
+                  container.innerHTML =
+                     '<div class="alert alert-info">No lessons added yet. Add your first lesson above!</div>';
                }
             } catch (error) {
                console.error("Failed to load course content:", error);
-               document.getElementById("lessons-container").innerHTML =
-                  "<p>Error loading course content or no content available yet.</p>";
+               const container = document.getElementById("lessons-container");
+               if (
+                  error.response?.status === 403 ||
+                  error.response?.status === 404
+               ) {
+                  container.innerHTML =
+                     '<div class="alert alert-info">This course has no content yet.</div>';
+               } else {
+                  container.innerHTML =
+                     '<div class="alert alert-info">Error loading course content.</div>';
+               }
             }
          }
 
@@ -505,6 +540,7 @@
                "Update Course";
             document.getElementById("cancel-update").style.display =
                "inline-block";
+            window.scrollTo({ top: 0, behavior: "smooth" });
          }
 
          function resetForm() {
@@ -532,13 +568,15 @@
             document.getElementById("current-video-info").style.display =
                "none";
             selectedFiles = [];
+            editingLessonNotes = [];
             document.getElementById("selected-files").innerHTML = "";
             editingLessonId = null;
          }
 
-         // Edit Lesson - Populate form
-         function editLesson(lessonId, title, duration) {
+         function editLesson(lessonId, title, duration, notes) {
             editingLessonId = lessonId;
+            editingLessonNotes = notes;
+
             document.getElementById("lesson-form-title").innerText =
                "Update Lesson";
             document.getElementById("lesson-title").value = title;
@@ -551,16 +589,12 @@
                "inline-block";
 
             // Scroll to form
-            document
-               .querySelector(".form-container")
-               .scrollIntoView({ behavior: "smooth" });
+            setTimeout(() => {
+               document
+                  .querySelector("#content-management .form-container")
+                  .scrollIntoView({ behavior: "smooth" });
+            }, 100);
          }
-
-         document
-            .getElementById("cancel-lesson-update")
-            .addEventListener("click", () => {
-               resetLessonForm();
-            });
 
          async function deleteLesson(lessonId) {
             if (
@@ -602,19 +636,26 @@
             }
          }
 
-         // File handling
          document.getElementById("add-files").addEventListener("click", () => {
             const fileInput = document.getElementById("lesson-file");
             const files = Array.from(fileInput.files);
 
             files.forEach((file) => {
+               if (!validateFileSize(file, MAX_FILE_SIZE, "Note")) return;
                if (!selectedFiles.find((f) => f.name === file.name)) {
                   selectedFiles.push(file);
                }
             });
 
             displaySelectedFiles();
+            fileInput.value = "";
          });
+
+         document
+            .getElementById("cancel-lesson-update")
+            .addEventListener("click", () => {
+               resetLessonForm();
+            });
 
          function displaySelectedFiles() {
             const container = document.getElementById("selected-files");
@@ -624,7 +665,7 @@
                const div = document.createElement("div");
                div.className = "note-item";
                div.innerHTML = `
-               <span>${file.name} (${file.type})</span>
+               <span>${file.name} (${(file.size / 1024).toFixed(2)} KB)</span>
                <button type="button" class="btn-danger" onclick="removeFile(${index})">Remove</button>
             `;
                container.appendChild(div);
@@ -636,7 +677,6 @@
             displaySelectedFiles();
          }
 
-         // Add lesson
          document
             .getElementById("add-lesson")
             .addEventListener("click", async () => {
@@ -649,14 +689,20 @@
                   document.getElementById("lesson-duration").value
                );
 
-               if (!title || !duration) {
-                  alert("Please fill in title and duration");
+               if (!title || !duration || duration <= 0) {
+                  alert("Please fill in title and duration (must be positive)");
                   return;
                }
 
-               // If updating, video is optional
                if (!editingLessonId && !videoFile) {
                   alert("Please select a video file for new lesson");
+                  return;
+               }
+
+               if (
+                  videoFile &&
+                  !validateFileSize(videoFile, MAX_VIDEO_SIZE, "Video")
+               ) {
                   return;
                }
 
@@ -669,7 +715,6 @@
 
                try {
                   if (editingLessonId) {
-                     // UPDATE EXISTING LESSON
                      let updateData = { title, duration };
 
                      // Upload new video if provided
@@ -685,6 +730,27 @@
                         updateData.videoKey = videoPresignRes.data.key;
                      }
 
+                     // Upload and add new notes if any
+                     if (selectedFiles.length > 0) {
+                        const notes = [];
+                        for (const file of selectedFiles) {
+                           const filePresignRes = await axiosInstance.get(
+                              `/s3/upload/lesson-file/pre-signed-url?courseId=${currentCourseId}&fileName=${encodeURIComponent(file.name)}&fileType=${encodeURIComponent(file.type)}`
+                           );
+
+                           await axios.put(filePresignRes.data.url, file, {
+                              headers: { "Content-Type": file.type },
+                           });
+
+                           notes.push({
+                              fileName: file.name,
+                              fileKey: filePresignRes.data.key,
+                              fileType: file.type,
+                           });
+                        }
+                        updateData.notes = notes;
+                     }
+
                      await axiosInstance.put(
                         `/course/${currentContentId}/${editingLessonId}/update`,
                         updateData
@@ -694,7 +760,6 @@
                      resetLessonForm();
                      loadCourseContent(currentCourseId);
                   } else {
-                     // ADD NEW LESSON
                      const videoPresignRes = await axiosInstance.get(
                         `/s3/upload/lesson-video/pre-signed-url?courseId=${currentCourseId}&fileName=${encodeURIComponent(videoFile.name)}&fileType=${encodeURIComponent(videoFile.type)}`
                      );
@@ -751,7 +816,11 @@
             });
 
          async function deleteCourse(courseId) {
-            if (!confirm("Are you sure you want to delete this course?"))
+            if (
+               !confirm(
+                  "Are you sure you want to delete this course? All content will be permanently deleted."
+               )
+            )
                return;
 
             try {
@@ -765,7 +834,10 @@
                   "Delete failed:",
                   error.response?.data || error.message
                );
-               alert("Failed to delete course.");
+               alert(
+                  "Failed to delete course: " +
+                     (error.response?.data?.error || error.message)
+               );
             }
          }
 
@@ -782,8 +854,13 @@
                const price = Number(document.getElementById("price").value);
                const file = document.getElementById("thumbnail-image").files[0];
 
-               if (!title || !description || isNaN(price)) {
-                  alert("Please fill all required fields.");
+               if (!title || !description || isNaN(price) || price < 0) {
+                  alert("Please fill all required fields with valid values.");
+                  button.disabled = false;
+                  return;
+               }
+
+               if (file && !validateFileSize(file, MAX_IMAGE_SIZE, "Image")) {
                   button.disabled = false;
                   return;
                }
@@ -835,7 +912,10 @@
                   if (key) {
                      await axiosInstance.delete(`/s3/delete?key=${key}`);
                   }
-                  alert("Operation failed, please try again.");
+                  alert(
+                     "Operation failed: " +
+                        (error.response?.data?.error || error.message)
+                  );
                } finally {
                   button.disabled = false;
                }
@@ -848,7 +928,6 @@
             .getElementById("back-to-courses")
             .addEventListener("click", showCourseList);
 
-         // Load courses on page load
          loadCourses();
       </script>
    </body>

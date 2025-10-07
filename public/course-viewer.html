@@ -198,26 +198,26 @@
                   `/course/${courseId}/content`
                );
 
-               const content = response.data;
-               console.log(content)
+               const { course, courseContent, enrollment } = response.data;
+               // console.log(course, courseContent, enrollment);
 
                container.innerHTML = `
                   <div class="m-container">
                      <div class="course-info">
-                        <h1>${content.course.title}</h1>
-                        <p>${content.course.description}</p>
-                        <p><strong>Total Duration:</strong> ${content.totalDuration} minutes</p>
-                        <p><strong>Access Expires:</strong> ${new Date(content.enrollment.expiresAt).toLocaleDateString()}</p>
-                        <p><strong>Progress:</strong> ${content.enrollment.progress.completionPercentage}% complete</p>
+                        <h1>${course.title}</h1>
+                        <p>${course.description}</p>
+                        <p><strong>Total Duration:</strong> ${courseContent.totalDuration} minutes</p>
+                        <p><strong>Access Expires:</strong> ${new Date(enrollment.expiresAt).toLocaleDateString()}</p>
+                        <p><strong>Progress:</strong> ${enrollment.progress.completionPercentage}% complete</p>
                      </div>
                      <div class="course-image">
-                        <img src="${content.course["thumbnail-image"].url}" alt="course-thumbnail-image" />
+                        <img src="${course["thumbnail-image"].url}" alt="course-thumbnail-image" />
                      </div>
                   </div>
                   
                   <div class="lessons">
                      <h2>📚 Course Lessons</h2>
-                     ${content.lessons
+                     ${courseContent.lessons
                         .map(
                            (lesson, index) => `
                         <div class="lesson">
@@ -258,10 +258,9 @@
 
                if (error.response?.status === 403) {
                   try {
-                     const courseResponse = await axiosInstance.get(
-                        `/course/preview`
-                     );
-                     const course = courseResponse.data.courses.find(
+                     const courseResponse =
+                        await axiosInstance.get(`/course/preview`);
+                     const course = courseResponse.courses.find(
                         (c) => c._id === courseId
                      );
 
@@ -310,9 +309,7 @@
 
          async function purchaseCourse(courseId) {
             try {
-               await axiosInstance.post(
-                  `/course/purchase/${courseId}`
-               );
+               await axiosInstance.post(`/course/purchase/${courseId}`);
                alert("✅ Course purchased successfully!");
                loadCourseContent(courseId);
             } catch (error) {
